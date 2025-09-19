@@ -2,14 +2,23 @@ import type { Goal } from "@/lib/profile";
 import { travel01 } from "./lessons/travel01";
 import { everyday01 } from "./lessons/everyday01";
 
-export const lessonsByGoal: Record<Goal, any[]> = {
-  everyday: [everyday01],
-  travel: [travel01],
-  work: [travel01],   // provisoire
-  exams: [travel01],  // provisoire
+export type Lesson = {
+  id: string;
+  title: string;
+  passage: string;
+  mcq: { q: string; choices: string[]; answer: number };
+  cloze: { text: string; answers: string[] };
+  shortAnswer: { q: string; keywords: string[] };
 };
 
-export function pickLesson(goal: Goal) {
-  const arr = lessonsByGoal[goal] ?? [travel01];
-  return arr[0]; // première leçon du thème
+export const lessonsByGoal: Record<Goal, Lesson[]> = {
+  everyday: [everyday01],
+  travel: [travel01],
+  work: [travel01],
+  exams: [travel01],
+};
+
+export function pickLesson(goal: Goal): Lesson {
+  const arr = lessonsByGoal[goal] ?? [everyday01];
+  return arr[0];
 }

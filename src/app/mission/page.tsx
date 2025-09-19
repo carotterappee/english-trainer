@@ -1,13 +1,15 @@
-
 "use client";
+type SessionWindow = Window & {
+  __sessionScore?: number;
+  __sessionMinutes?: number;
+};
+
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loadProfile, VARIANT_FLAG, GOAL_LABEL, type UserProfile } from "@/lib/profile";
 import { translateWord } from "@/lib/dict";
 import { addWord } from "@/lib/wordStore";
 import { normalize, softEquals } from "@/lib/textUtils";
-
-// petite adaptation 🇬🇧/🇺🇸 (optionnel, extensible)
 function applyVariant(text: string, variant: "british"|"american") {
   const swaps: Record<string, string> =
     variant === "british"
@@ -46,6 +48,7 @@ function tokenize(sentence: string) {
 
 
 export default function Mission() {
+  "use client";
   const router = useRouter();
   const profile = loadProfile();
 
@@ -73,8 +76,11 @@ export default function Mission() {
 
   useEffect(() => { if (!profile) router.replace("/"); }, [profile, router]);
   useEffect(() => {
-    (window as any).__sessionScore = feedback === "ok" ? 100 : 0;
-    (window as any).__sessionMinutes = 5;
+    if (typeof window !== "undefined") {
+      const w = window as SessionWindow;
+      w.__sessionScore = feedback === "ok" ? 100 : 0;
+      w.__sessionMinutes = 5;
+    }
   }, [feedback]);
 
   if (!profile) return null;

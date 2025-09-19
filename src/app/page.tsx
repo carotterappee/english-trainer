@@ -1,25 +1,18 @@
+
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { hasProfile } from "@/lib/profile";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import SelectProfileModal from "@/components/SelectProfileModal";
 
 export default function Home() {
   const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
-  const [hasProf, setHasProf] = useState(false);
-
-  useEffect(() => {
-    setHasProf(hasProfile());
-  }, []);
 
   const start = () => {
-    if (hasProfile()) {
-      router.push("/mission");
-    } else {
-      setModalOpen(true);
-    }
+    if (hasProfile()) router.push("/mission");
+    else setModalOpen(true);
   };
 
   return (
