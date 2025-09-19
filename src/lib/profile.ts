@@ -1,3 +1,21 @@
+export const VARIANT_FLAG: Record<EnglishVariant, string> = {
+  british: "🇬🇧",
+  american: "🇺🇸",
+};
+export const GOAL_LABEL: Record<Goal, string> = {
+  everyday: "Vie quotidienne",
+  travel: "Voyage",
+  work: "Travail",
+  exams: "Examens",
+};
+
+export function updateProfile(patch: Partial<Pick<UserProfile, "variant" | "goal">>) {
+  const cur = loadProfile();
+  if (!cur) return null;
+  const next = { ...cur, ...patch };
+  saveProfile(next);
+  return next;
+}
 export type EnglishVariant = "british" | "american";
 export type Goal =
   | "everyday"   // vie de tous les jours

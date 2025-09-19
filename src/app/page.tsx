@@ -35,9 +35,11 @@ export default function Home() {
           🚀 Commencer la mission
         </button>
 
-        <div className="grid grid-cols-2 gap-3">
+
+        <div className="grid grid-cols-3 gap-3">
           <Link href="/progress" className="text-center rounded-2xl border py-2 hover:bg-indigo-50 transition">📈 Progression</Link>
           <Link href="/settings" className="text-center rounded-2xl border py-2 hover:bg-indigo-50 transition">⚙️ Réglages</Link>
+          <Link href="/flashcards" className="text-center rounded-2xl border py-2 hover:bg-indigo-50 transition">🧠 Flashcards</Link>
         </div>
 
         <p className="text-center text-sm text-gray-400">Progression sauvegardée automatiquement</p>

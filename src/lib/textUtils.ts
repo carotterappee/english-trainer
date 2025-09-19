@@ -1,3 +1,6 @@
+export function softEquals(a: string, b: string): boolean {
+  return normalize(a) === normalize(b);
+}
 // Normalise un texte (minuscules, sans accents, espaces propres)
 export function normalize(s: string): string {
   return s
