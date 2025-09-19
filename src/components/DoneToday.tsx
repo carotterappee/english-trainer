@@ -2,13 +2,24 @@
 import { useState } from "react";
 import { upsertToday } from "@/lib/progressStore";
 
+// Déclare proprement les variables attachées à window (optionnelles)
+type WinWithSession = typeof window & {
+  __sessionScore?: number;
+  __sessionMinutes?: number;
+};
+
 export default function DoneToday() {
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
-    // remplace par tes vrais calculs de session
-    const score = (window as any).__sessionScore ?? 80;   // 0–100
-    const minutes = (window as any).__sessionMinutes ?? 15;
+    const w = (typeof window !== "undefined" ? window : undefined) as
+      | WinWithSession
+      | undefined;
+
+    // Valeurs par défaut si tu n'as pas encore de vrai calcul
+    const score: number = w?.__sessionScore ?? 80;   // 0–100
+    const minutes: number = w?.__sessionMinutes ?? 15;
+
     upsertToday({ score, minutes });
     setSaved(true);
   };
