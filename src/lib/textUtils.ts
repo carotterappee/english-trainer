@@ -20,6 +20,10 @@ export function normalizeAnswer(s: string) {
     .trim();
 }
 
+export function answersEqual(a: string, b: string) {
+  return normalizeAnswer(a) === normalizeAnswer(b);
+}
+
 /** Vrai si c’est un “mot” traduisible (contient au moins une lettre) */
 export function isTranslatableToken(tok: string) {
   return /[\p{Letter}]/u.test(tok || "");

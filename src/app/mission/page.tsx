@@ -11,7 +11,7 @@ import { sentencesFR } from "@/content/sentences_fr";
 import { applyVariant } from "@/lib/variant";
 import { preloadForSentence, translateWordGeneric } from "@/lib/bigdict";
 import { isPassed, markSeen, sentenceId } from "@/lib/seenStore";
-import { normalizeAnswer, displayFriendly, isTranslatableToken } from "@/lib/textUtils";
+import { normalizeAnswer, displayFriendly, isTranslatableToken, answersEqual } from "@/lib/textUtils";
 import { VARIANT_FLAG, GOAL_LABEL } from "@/lib/profile";
 import { addCoins } from "@/lib/coins";
 import { loadSession, saveSession, clearSession as clearSess, secondsLeft, startSession } from "@/lib/session";
@@ -163,38 +163,29 @@ export default function Mission() {
 
   function check() {
     if (!current || !profile) return;
-    const user = normalizeAnswer(answerFr);
-    const expected = normalizeAnswer(expText);
-    const ok = user.length > 0 && user === expected;
-    setAttempts(a => a + 1);
-    markSeen(profile.goal, currentId, false);
+    const attempt = tries + 1;
+    if (!normalizeAnswer(answerFr)) {
+      setLast({ ok: false });
+      return;
+    }
+    const ok = answersEqual(answerFr, expText);
     setLast({ ok });
-    // Gestion du niveau adaptatif
-    const firstTry = tries === 0;
-    const st = recordAnswer(profile, { ok, tries: firstTry ? 1 : tries + 1 });
-    setLvl(st.level);
+    setTries(attempt);
     if (ok) {
-      setFeedback("ok");
-      setCorrectCount(c => c + 1);
-      setSessionCoins(c => c + 5);
-      markSeen(profile.goal, currentId, true);
       addCoins(5, profile.goal);
       const s = loadSession();
-      if (s) {
-        s.coins += 5;
-        s.attempts += 1;
-        s.correct += 1;
-        saveSession(s);
-      }
-      setTries(0);
+      if (s) { s.coins += 5; s.attempts += 1; s.correct += 1; saveSession(s); }
+      const st = recordAnswer(profile, { ok: true, tries: attempt });
+      setLvl(st.level);
+      next();
+      return;
     } else {
-      setFeedback("ko");
-      setTries(t => t + 1);
-      // on loggue l’essai mais on n’oblige pas à rester
-      const s2 = loadSession();
-      if (s2) { s2.attempts += 1; saveSession(s2); }
+      const s = loadSession();
+      if (s) { s.attempts += 1; saveSession(s); }
+      const st = recordAnswer(profile, { ok: false, tries: attempt });
+      setLvl(st.level);
+      // on reste sur la même phrase, avec boutons Réessayer / Phrase suivante
     }
-    setNotes([]);
   }
 
   function next() {
@@ -319,7 +310,7 @@ export default function Mission() {
         </p>
         <textarea
           value={answerFr}
-          onChange={(e) => { setAnswerFr(e.target.value); setFeedback("idle"); }}
+          onChange={(e) => { setAnswerFr(e.target.value); setLast(null); }}
           onKeyDown={e => {
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); check(); }
           }}
