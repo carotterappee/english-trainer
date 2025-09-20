@@ -53,12 +53,12 @@ export default function SunsetFX() {
 
           {/* Chemin d’une vague (une période) */}
           <path
-            id="wavePath"
-            d="M 0 0 
-               C 50 -18, 100 18, 150 0
-               S 250 -18, 300 0
-               S 400 18, 450 0
-               S 550 -18, 600 0"
+        id="wavePath"
+        d="M 0 0 
+          C 50 -8, 100 8, 150 0
+          S 250 -8, 300 0
+          S 400 8, 450 0
+          S 550 -8, 600 0"
           />
 
           {/* Oiseau (deux arcs) */}
@@ -196,23 +196,20 @@ export default function SunsetFX() {
           50%     { transform: translateX(10px)  skewY(1deg); opacity: 0.55; }
         }
 
-        /* Parallax des vagues + micro oscillation verticale */
-        .waves.far  { animation: waveXFar  26s linear infinite,  waveY 5s ease-in-out infinite;  opacity: 0.85; }
-        .waves.mid  { animation: waveXMid  18s linear infinite,  waveY 4.2s ease-in-out infinite; }
-        .waves.near { animation: waveXNear 12s linear infinite,  waveY 3.6s ease-in-out infinite; }
 
-        @keyframes waveXFar  { from { transform: translateX(0)    translateY(560px); } to { transform: translateX(-360px) translateY(560px); } }
-        @keyframes waveXMid  { from { transform: translateX(0)    translateY(620px); } to { transform: translateX(-300px) translateY(620px); } }
-        @keyframes waveXNear { from { transform: translateX(0)    translateY(690px); } to { transform: translateX(-240px) translateY(690px); } }
-        @keyframes waveY     { 0%,100% { transform-origin: 0 0; } 50% { transform: translateY(-2px); } }
+        /* Parallax des vagues – déplacement uniquement en X (pas d’oscillation verticale) */
+        .waves.far  { animation: waveFar  26s linear infinite; opacity: .85; }
+        .waves.mid  { animation: waveMid  18s linear infinite; }
+        .waves.near { animation: waveNear 12s linear infinite; }
 
-        /* Mousse au rivage : léger drift + blur subtil pour adoucir */
-        .foam {
-          filter: drop-shadow(0 2px 3px rgba(255,255,255,0.35));
-          animation: foamDrift 14s linear infinite;
-          opacity: 0.95;
-        }
-        @keyframes foamDrift { from { transform: translateX(0) translateY(820px); } to { transform: translateX(-260px) translateY(820px); } }
+        /* On conserve la position Y constante de chaque couche */
+        @keyframes waveFar  { from { transform: translate3d(0,     560px, 0); } to { transform: translate3d(-240px, 560px, 0); } }
+        @keyframes waveMid  { from { transform: translate3d(0,     620px, 0); } to { transform: translate3d(-220px, 620px, 0); } }
+        @keyframes waveNear { from { transform: translate3d(0,     690px, 0); } to { transform: translate3d(-200px, 690px, 0); } }
+
+        /* Mousse au rivage : glisse doucement en X, Y fixe */
+        .foam { filter: drop-shadow(0 2px 3px rgba(255,255,255,0.35)); animation: foamDrift 16s linear infinite; opacity: .95; }
+        @keyframes foamDrift { from { transform: translate3d(0,     820px, 0); } to { transform: translate3d(-220px, 820px, 0); } }
 
         /* Oiseaux – traversent l’écran, petit flap par scaleY */
         .flock { opacity: 0; }
