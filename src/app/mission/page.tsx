@@ -1,59 +1,43 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { loadProfile, VARIANT_FLAG, GOAL_LABEL, type UserProfile } from "@/lib/profile";
-import { getSentences, type SentenceItem } from "@/content/sentences";
-import { preloadForSentence, translateWord } from "@/lib/bigdict";
-import { addWord } from "@/lib/wordStore";
-import { normalize, softEquals, evaluateFrenchAnswer } from "@/lib/textUtils";
-import { sentenceId, isPassed, markSeen } from "@/lib/seenStore";
+import { loadProfile } from "@/lib/profile";
+import { getSentences } from "@/content/sentences";
+import { sentencesFR } from "@/content/sentences_fr";
+import { applyVariant } from "@/lib/variant";
+import { preloadForSentence, translateWordGeneric } from "@/lib/bigdict";
+import { isPassed, markSeen, sentenceId } from "@/lib/seenStore";
+import { evaluateFrenchAnswer, evaluateAnswerGeneric } from "@/lib/textUtils";
+import { VARIANT_FLAG, GOAL_LABEL } from "@/lib/profile";
 import { addCoins } from "@/lib/coins";
 import Timer from "@/components/Timer";
-import Coin from "@/components/Coin";
-
-// --- utils ---
-type Token = { t: string; isWord: boolean };
-function tokenize(sentence: string): Token[] {
-  const tokens: Token[] = [];
-  const re = /[A-Za-z']+|[^A-Za-z'\s]+|\s+/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(sentence))) {
-    const t = m[0];
-    tokens.push({ t, isWord: /^[A-Za-z']+$/.test(t) });
-  }
-  return tokens;
-}
-function applyVariant(text: string, variant: "british" | "american") {
-  let out = text;
-  if (variant === "american") {
-    out = out.replace(/\breturn ticket\b/gi, "round-trip ticket");
-    out = out.replace(/\bin the test\b/gi, "on the test");
-  } else {
-    out = out.replace(/\bround-?trip ticket\b/gi, "return ticket");
-    out = out.replace(/\bon the test\b/gi, "in the test");
-  }
-  return out;
-}
+// Typage pour l'accès window custom
 type SessionWindow = Window & { __sessionScore?: number; __sessionMinutes?: number };
-
-const COINS_PER_CORRECT = 3;
-const SESSION_SECONDS = 15 * 60;
+// Valeur par défaut pour la durée d'une session (15 min)
+const SESSION_SECONDS = 900;
+import Coin from "@/components/Coin";
+// Ajoutez ici d'autres imports de composants si besoin
 
 export default function Mission() {
-
   const router = useRouter();
   const profile = loadProfile();
 
-  // hooks toujours appelés, valeurs nulles si pas de profil
-  const bankBase = useMemo(() => getSentences(profile?.goal ?? "everyday"), [profile?.goal]);
-  const bank: SentenceItem[] = useMemo(
-    () => bankBase.map(s => ({ en: applyVariant(s.en, profile?.variant ?? "british"), fr: s.fr })),
-    [bankBase, profile?.variant]
+  // Hooks toujours appelés, valeurs par défaut si pas de profil
+  const isEn = (profile?.course ?? "en") === "en";
+  type EnFr = { en: string; fr: string };
+  type FrRu = { fr: string; ru: string };
+  const bankBase = useMemo<EnFr[] | FrRu[]>(
+    () => (profile ? (isEn ? getSentences(profile.goal) as EnFr[] : sentencesFR as FrRu[]) : []),
+    [isEn, profile?.goal]
   );
-  // ids basés sur la phrase EN "de base" (sans variante) pour rester stables
-  const idsBase = useMemo(() => bankBase.map(s => sentenceId(s.en)), [bankBase]);
-
-  // index de la phrase courante (null = plus de candidates)
+  const bank = useMemo<EnFr[] | FrRu[]>(
+    () => (profile ? (isEn ? (bankBase as EnFr[]).map((s) => ({ en: applyVariant(s.en, profile.variant), fr: s.fr })) : bankBase) : []),
+    [bankBase, isEn, profile]
+  );
+  const idsBase = useMemo<string[]>(
+    () => bankBase.map((s) => sentenceId(isEn ? ('en' in s ? s.en : s.fr) : s.fr)),
+    [bankBase, isEn]
+  );
   const [idx, setIdx] = useState<number | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [answerFr, setAnswerFr] = useState<string>("");
@@ -65,18 +49,37 @@ export default function Mission() {
   const [ended, setEnded] = useState<boolean>(false);
   const current = idx === null ? null : bank[idx];
   const currentId = idx === null ? "" : idsBase[idx];
-  const tokens = useMemo(() => tokenize(current?.en || ""), [current]);
+  // Typage correct pour EN->FR ou FR->RU
+  let srcText = "";
+  let expText = "";
+  let tokens: string[] = [];
+  if (isEn && current && 'en' in current && 'fr' in current) {
+    srcText = current.en;
+    expText = current.fr;
+    tokens = current.en.split(" "); // ou utilisez tokenize si besoin
+  } else if (!isEn && current && 'fr' in current && 'ru' in current) {
+    srcText = current.fr;
+    expText = current.ru;
+    tokens = current.fr.split(" ");
+  }
   const scorePct = attempts ? Math.round((correctCount / attempts) * 100) : 0;
   const [translations, setTranslations] = useState<string[]|null>(null);
 
-  useEffect(() => { if (!profile) router.replace("/"); }, [profile, router]);
-  // au montage: choisir une première phrase non vue/réussie
+  // Redirection si pas de profil
   useEffect(() => {
-    if (!profile) return;
-    const first = pickNextUnseenIndex(null);
-    setIdx(first);
+    if (!profile) router.replace("/");
+  }, [profile, router]);
+
+  // Choix de la première phrase non vue/réussie
+  useEffect(() => {
+    if (profile) {
+      const first = pickNextUnseenIndex(null);
+      setIdx(first);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.goal, profile?.variant]);
+
+  // Score session dans window
   useEffect(() => {
     if (typeof window !== "undefined") {
       const w = window as SessionWindow;
@@ -84,22 +87,24 @@ export default function Mission() {
       w.__sessionMinutes = Math.round((SESSION_SECONDS - 0) / 60); // simple placeholder
     }
   }, [scorePct]);
+
+  // Préchargement dictionnaire pour la phrase courante (EN)
   useEffect(() => {
-    if (current?.en) preloadForSentence(current.en);
-  }, [current?.en]);
+    if (isEn && current && 'en' in current) preloadForSentence(current.en);
+  }, [current, isEn]);
+
+  // Traduction du mot sélectionné
   useEffect(() => {
     let alive = true;
-    if (selected) {
-      translateWord(selected).then((res) => {
-        if (alive) setTranslations(res ?? ["(pas trouvé)"]);
-      });
-    } else {
-      setTranslations(null);
-    }
+    if (!selected) return setTranslations(null);
+    const src = isEn ? "en" : "fr";
+    const tgt = isEn ? "fr" : (profile?.answerLang ?? "ru");
+    translateWordGeneric(selected, src, tgt).then((res) => { if (alive) setTranslations(res); });
     return () => { alive = false; };
-  }, [selected]);
+  }, [selected, isEn, profile?.answerLang]);
 
   if (!profile) return null;
+
 
   // Sélection de la prochaine phrase non réussie
   function pickNextUnseenIndex(from: number | null): number | null {
@@ -121,18 +126,15 @@ export default function Mission() {
 
   function check() {
     if (!current || !profile) return;
-    const res = evaluateFrenchAnswer(current.fr, answerFr);
+    const res = isEn
+      ? evaluateFrenchAnswer(expText, answerFr)
+      : evaluateAnswerGeneric(expText, answerFr, 0.2);
     setAttempts(a => a + 1);
-
-    // on marque "vu" à la première tentative :
     markSeen(profile.goal, currentId, false);
-
     if (res.ok) {
       setFeedback("ok");
       setCorrectCount(c => c + 1);
-      setSessionCoins(c => c + COINS_PER_CORRECT);
-
-      // et on marque "réussi" -> la phrase sort définitivement du pool
+  setSessionCoins(c => c + 5); // 5 pièces par bonne réponse (valeur par défaut)
       markSeen(profile.goal, currentId, true);
     } else {
       setFeedback("ko");
@@ -209,20 +211,16 @@ export default function Mission() {
       <article className="p-4 rounded-2xl border bg-white">
         <h2 className="font-medium mb-2">📖 Traduis la phrase</h2>
         <p className="leading-8 text-lg">
-          {tokens.map((tok, i) =>
-            tok.isWord ? (
-              <button
-                key={i}
-                onClick={() => setSelected(tok.t)}
-                className="underline decoration-dotted underline-offset-4 hover:bg-yellow-50 rounded px-1"
-                title="Cliquer pour voir la traduction"
-              >
-                {tok.t}
-              </button>
-            ) : (
-              <span key={i}>{tok.t}</span>
-            )
-          )}
+          {tokens.map((tok, i) => (
+            <button
+              key={i}
+              onClick={() => setSelected(tok)}
+              className="underline decoration-dotted underline-offset-4 hover:bg-yellow-50 rounded px-1"
+              title="Cliquer pour voir la traduction"
+            >
+              {tok}
+            </button>
+          ))}
         </p>
       </article>
 
@@ -251,13 +249,16 @@ export default function Mission() {
 
       {/* Réponse FR */}
       <div className="p-4 rounded-2xl border bg-white space-y-3">
+        <p className="font-medium">
+          📝 Traduis en {isEn ? "français" : (profile.answerLang === "ru" ? "russe" : "français")}
+        </p>
         <textarea
           value={answerFr}
           onChange={(e) => { setAnswerFr(e.target.value); setFeedback("idle"); }}
           onKeyDown={e => {
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); check(); }
           }}
-          placeholder="Écris la traduction en français… (Entrée = vérifier)"
+          placeholder={isEn ? "Écris la traduction en français… (Entrée = vérifier)" : "Écris la traduction en russe… (Entrée = vérifier)"}
           className="w-full rounded-xl border p-3 min-h-[100px]"
         />
         <div className="flex flex-wrap gap-3">
@@ -274,7 +275,7 @@ export default function Mission() {
           )}
           {feedback === "ko" && current && (
             <span className="self-center text-rose-700">
-              ❌ Presque. Attendu : <em className="underline">{current.fr}</em>
+              ❌ Presque. Attendu : <em className="underline">{expText}</em>
             </span>
           )}
           {notes.length > 0 && (

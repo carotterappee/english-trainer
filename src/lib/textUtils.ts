@@ -1,3 +1,21 @@
+// --- normalisation unicode générique (pour le russe, etc.) ---
+export function normalizeAny(s: string) {
+  return s.toLowerCase()
+    .normalize("NFC")
+    .replace(/[^\p{Letter}\p{Number}\s']/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function evaluateAnswerGeneric(expected: string, user: string, tolerance = 0.2) {
+  const e = normalizeAny(expected);
+  const u = normalizeAny(user);
+  if (!e || !u) return { ok: false, score: 0, notes: [] as string[] };
+  const d = levenshtein(e, u);
+  const thr = Math.max(1, Math.floor(e.length * tolerance));
+  const ok = d <= thr;
+  return { ok, score: ok ? 1 : Math.max(0, 1 - d / Math.max(1, e.length)), notes: [] as string[] };
+}
 // --- normalisation & tokenisation ---
 export function stripAccents(s: string) {
   return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");

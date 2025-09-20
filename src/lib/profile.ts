@@ -1,3 +1,5 @@
+export type Course = "en" | "fr";
+export type AnswerLang = "fr" | "ru";
 export type AvatarMode = "vector" | "pixel";
 
 export type AvatarConfig = {
@@ -54,8 +56,20 @@ export type UserProfile = {
   variant: EnglishVariant;
   goal: Goal;
   createdAt: string; // ISO
-  avatar?: AvatarConfig; // ⬅️ nouveau
+  avatar?: AvatarConfig;
+  // ⬇️ nouveaux champs
+  course?: Course;         // défaut: "en"
+  answerLang?: AnswerLang; // défaut: "fr"
 };
+// migration douce (à appeler au démarrage)
+export function ensureProfileDefaults() {
+  const p = loadProfile();
+  if (!p) return;
+  let changed = false;
+  if (!p.course) { p.course = "en"; changed = true; }
+  if (!p.answerLang) { p.answerLang = "fr"; changed = true; }
+  if (changed) saveProfile(p);
+}
 export function updateAvatar(patch: Partial<AvatarConfig>) {
   const cur = loadProfile();
   if (!cur) return null;
