@@ -1,10 +1,9 @@
-
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loadProfile, VARIANT_FLAG, GOAL_LABEL, type UserProfile } from "@/lib/profile";
 import { getSentences, type SentenceItem } from "@/content/sentences";
-import { translateWord } from "@/lib/dict";
+import { preloadForSentence, translateWord } from "@/lib/bigdict";
 import { addWord } from "@/lib/wordStore";
 import { normalize, softEquals, evaluateFrenchAnswer } from "@/lib/textUtils";
 import { sentenceId, isPassed, markSeen } from "@/lib/seenStore";
@@ -68,6 +67,7 @@ export default function Mission() {
   const currentId = idx === null ? "" : idsBase[idx];
   const tokens = useMemo(() => tokenize(current?.en || ""), [current]);
   const scorePct = attempts ? Math.round((correctCount / attempts) * 100) : 0;
+  const [translations, setTranslations] = useState<string[]|null>(null);
 
   useEffect(() => { if (!profile) router.replace("/"); }, [profile, router]);
   // au montage: choisir une première phrase non vue/réussie
@@ -84,6 +84,20 @@ export default function Mission() {
       w.__sessionMinutes = Math.round((SESSION_SECONDS - 0) / 60); // simple placeholder
     }
   }, [scorePct]);
+  useEffect(() => {
+    if (current?.en) preloadForSentence(current.en);
+  }, [current?.en]);
+  useEffect(() => {
+    let alive = true;
+    if (selected) {
+      translateWord(selected).then((res) => {
+        if (alive) setTranslations(res ?? ["(pas trouvé)"]);
+      });
+    } else {
+      setTranslations(null);
+    }
+    return () => { alive = false; };
+  }, [selected]);
 
   if (!profile) return null;
 
@@ -218,10 +232,16 @@ export default function Mission() {
           <div>
             <div className="text-sm text-gray-500">Mot sélectionné</div>
             <div className="text-lg font-medium">{selected}</div>
-            <div className="text-gray-700">→ {translateWord(selected)}</div>
+            <div className="text-gray-700">
+              {translations ? translations.slice(0,3).join(" · ") : "…"}
+            </div>
           </div>
           <button
-            onClick={() => addWord(selected, translateWord(selected))}
+            onClick={() => {
+              const first = translations?.[0] ?? "(?)";
+        import("@/lib/wordStore").then(({ addWord }) => addWord(selected, first));
+  import("@/lib/wordStore").then(({ addWord }) => addWord(selected, first));
+            }}
             className="px-4 py-2 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
           >
             ➕ Ajouter à ma liste
