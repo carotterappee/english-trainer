@@ -7,6 +7,7 @@ import { getSentences, type SentenceItem } from "@/content/sentences";
 import { translateWord } from "@/lib/dict";
 import { addWord } from "@/lib/wordStore";
 import { normalize, softEquals, evaluateFrenchAnswer } from "@/lib/textUtils";
+import { sentenceId, isPassed, markSeen } from "@/lib/seenStore";
 import { addCoins } from "@/lib/coins";
 import Timer from "@/components/Timer";
 import Coin from "@/components/Coin";
@@ -50,7 +51,11 @@ export default function Mission() {
     () => bankBase.map(s => ({ en: applyVariant(s.en, profile?.variant ?? "british"), fr: s.fr })),
     [bankBase, profile?.variant]
   );
-  const [idx, setIdx] = useState<number>(0);
+  // ids basés sur la phrase EN "de base" (sans variante) pour rester stables
+  const idsBase = useMemo(() => bankBase.map(s => sentenceId(s.en)), [bankBase]);
+
+  // index de la phrase courante (null = plus de candidates)
+  const [idx, setIdx] = useState<number | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [answerFr, setAnswerFr] = useState<string>("");
   const [feedback, setFeedback] = useState<"idle" | "ok" | "ko">("idle");
@@ -59,11 +64,19 @@ export default function Mission() {
   const [attempts, setAttempts] = useState<number>(0);
   const [sessionCoins, setSessionCoins] = useState<number>(0);
   const [ended, setEnded] = useState<boolean>(false);
-  const current = bank[idx];
-  const tokens = useMemo(() => tokenize(current.en), [current.en]);
+  const current = idx === null ? null : bank[idx];
+  const currentId = idx === null ? "" : idsBase[idx];
+  const tokens = useMemo(() => tokenize(current?.en || ""), [current]);
   const scorePct = attempts ? Math.round((correctCount / attempts) * 100) : 0;
 
   useEffect(() => { if (!profile) router.replace("/"); }, [profile, router]);
+  // au montage: choisir une première phrase non vue/réussie
+  useEffect(() => {
+    if (!profile) return;
+    const first = pickNextUnseenIndex(null);
+    setIdx(first);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.goal, profile?.variant]);
   useEffect(() => {
     if (typeof window !== "undefined") {
       const w = window as SessionWindow;
@@ -74,27 +87,90 @@ export default function Mission() {
 
   if (!profile) return null;
 
+  // Sélection de la prochaine phrase non réussie
+  function pickNextUnseenIndex(from: number | null): number | null {
+    if (!profile) return null;
+    // liste des indices non "passed"
+    const candidates: number[] = idsBase
+      .map((_, i) => i)
+      .filter(i => !isPassed(profile.goal, idsBase[i]));
+    if (candidates.length === 0) return null;
+
+    // option: éviter de répéter immédiatement la même
+    const filtered = from === null ? candidates : candidates.filter(i => i !== from);
+    const list = filtered.length ? filtered : candidates;
+
+    // tirage aléatoire simple
+    const pick = list[Math.floor(Math.random() * list.length)];
+    return pick;
+  }
+
   function check() {
+    if (!current || !profile) return;
     const res = evaluateFrenchAnswer(current.fr, answerFr);
     setAttempts(a => a + 1);
+
+    // on marque "vu" à la première tentative :
+    markSeen(profile.goal, currentId, false);
+
     if (res.ok) {
       setFeedback("ok");
       setCorrectCount(c => c + 1);
       setSessionCoins(c => c + COINS_PER_CORRECT);
+
+      // et on marque "réussi" -> la phrase sort définitivement du pool
+      markSeen(profile.goal, currentId, true);
     } else {
       setFeedback("ko");
     }
     setNotes(res.notes);
   }
+
   function next() {
+    if (idx === null) return;
     setSelected(null);
     setAnswerFr("");
     setFeedback("idle");
-    setIdx(i => (i + 1) % bank.length);
+    const n = pickNextUnseenIndex(idx);
+    setIdx(n);
   }
   function finishSession() {
   setEnded(true);
   addCoins(sessionCoins, profile!.goal);
+  }
+
+  // Gestion “plus de nouvelles phrases”
+  const exhausted = idx === null;
+
+  if (exhausted) {
+    return (
+      <main className="min-h-screen p-8 max-w-2xl mx-auto space-y-6">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold">Mission du jour</h1>
+          <span className="ml-auto text-sm rounded-full px-3 py-1 bg-indigo-100 text-indigo-800">
+            {VARIANT_FLAG[profile.variant]} {GOAL_LABEL[profile.goal]}
+          </span>
+        </div>
+
+        <div className="p-6 rounded-3xl border bg-white space-y-4">
+          <p className="text-lg">🎉 Tu as terminé toutes les phrases <b>nouvelles</b> pour ce thème.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              onClick={() => location.assign("/settings")}
+              className="rounded-2xl border py-2 hover:bg-indigo-50"
+            >
+              Changer de thème
+            </button>
+            <button
+              onClick={() => { import("@/lib/seenStore").then(m => m.clearSeen(profile.goal)); location.reload(); }}
+              className="rounded-2xl bg-indigo-600 text-white py-2"
+            >
+              Rejouer ce thème (réinitialiser)
+            </button>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -176,7 +252,7 @@ export default function Mission() {
               </button>
             </>
           )}
-          {feedback === "ko" && (
+          {feedback === "ko" && current && (
             <span className="self-center text-rose-700">
               ❌ Presque. Attendu : <em className="underline">{current.fr}</em>
             </span>

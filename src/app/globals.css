@@ -24,3 +24,28 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* --- Animated clouds --- */
+.clouds {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+.cloud {
+  position: absolute;
+  left: -40vw;              /* start off-screen */
+  transform: translateX(0) scale(var(--scale, 1));
+  animation: drift var(--dur, 100s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  opacity: var(--o, 0.85);
+  filter: drop-shadow(0 10px 22px rgba(0,0,0,.06));
+  will-change: transform;
+}
+@keyframes drift {
+  from { transform: translateX(0)   scale(var(--scale, 1)); }
+  to   { transform: translateX(140vw) scale(var(--scale, 1)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cloud { animation: none; }
+}
