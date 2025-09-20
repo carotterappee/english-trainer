@@ -1,4 +1,6 @@
 "use client";
+
+  const [last, setLast] = useState<{ ok: boolean } | null>(null);
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loadProfile } from "@/lib/profile";
@@ -8,7 +10,7 @@ import { sentencesFR } from "@/content/sentences_fr";
 import { applyVariant } from "@/lib/variant";
 import { preloadForSentence, translateWordGeneric } from "@/lib/bigdict";
 import { isPassed, markSeen, sentenceId } from "@/lib/seenStore";
-import { evaluateFrenchAnswer, evaluateAnswerGeneric } from "@/lib/textUtils";
+import { normalizeAnswer, displayFriendly, isTranslatableToken } from "@/lib/textUtils";
 import { VARIANT_FLAG, GOAL_LABEL } from "@/lib/profile";
 import { addCoins } from "@/lib/coins";
 import { loadSession, saveSession, clearSession as clearSess, secondsLeft, startSession } from "@/lib/session";
@@ -77,12 +79,13 @@ export default function Mission() {
   if (isEn && current && 'en' in current && 'fr' in current) {
     srcText = current.en;
     expText = current.fr;
-    tokens = current.en.split(" "); // ou utilisez tokenize si besoin
+    tokens = current.en.split(" ");
   } else if (!isEn && current && 'fr' in current && 'ru' in current) {
     srcText = current.fr;
     expText = current.ru;
     tokens = current.fr.split(" ");
   }
+  const phraseAffichee = displayFriendly(srcText);
   const scorePct = attempts ? Math.round((correctCount / attempts) * 100) : 0;
   const [translations, setTranslations] = useState<string[]|null>(null);
 
@@ -158,23 +161,22 @@ export default function Mission() {
 
   function check() {
     if (!current || !profile) return;
-    const res = isEn
-      ? evaluateFrenchAnswer(expText, answerFr)
-      : evaluateAnswerGeneric(expText, answerFr, 0.2);
+    const user = normalizeAnswer(answerFr);
+    const expected = normalizeAnswer(expText);
+    const ok = user.length > 0 && user === expected;
     setAttempts(a => a + 1);
     markSeen(profile.goal, currentId, false);
+    setLast({ ok });
     // Gestion du niveau adaptatif
     const firstTry = tries === 0;
-    const st = recordAnswer(profile, { ok: res.ok, tries: firstTry ? 1 : tries + 1 });
+    const st = recordAnswer(profile, { ok, tries: firstTry ? 1 : tries + 1 });
     setLvl(st.level);
-    if (res.ok) {
+    if (ok) {
       setFeedback("ok");
       setCorrectCount(c => c + 1);
-      setSessionCoins(c => c + 5); // 5 pièces par bonne réponse (valeur par défaut)
+      setSessionCoins(c => c + 5);
       markSeen(profile.goal, currentId, true);
-      // pièces immédiates
       addCoins(5, profile.goal);
-      // persiste la session (coins/attempts/correct)
       const s = loadSession();
       if (s) {
         s.coins += 5;
@@ -182,15 +184,15 @@ export default function Mission() {
         s.correct += 1;
         saveSession(s);
       }
-      setTries(0); // reset essais après succès
+      setTries(0);
     } else {
       setFeedback("ko");
-      // même en cas d’échec, incrémente attempts
       setTries(t => t + 1);
+      // on loggue l’essai mais on n’oblige pas à rester
       const s2 = loadSession();
       if (s2) { s2.attempts += 1; saveSession(s2); }
     }
-    setNotes(res.notes);
+    setNotes([]);
   }
 
   function next() {
@@ -248,9 +250,9 @@ export default function Mission() {
         <span className="ml-auto text-sm rounded-full px-3 py-1 bg-indigo-100 text-indigo-800">
           {VARIANT_FLAG[profile.variant]} {GOAL_LABEL[profile.goal]}
         </span>
-        <span className="ml-2 text-sm rounded-full px-3 py-1 bg-amber-100 text-amber-800">
+        {/* <span className="ml-2 text-sm rounded-full px-3 py-1 bg-amber-100 text-amber-800">
           Niveau {lvl}
-        </span>
+        </span> */}
       </div>
 
       {/* En-tête : timer + pièces */}
@@ -275,16 +277,7 @@ export default function Mission() {
       <article className="p-4 rounded-2xl border bg-white">
         <h2 className="font-medium mb-2">📖 Traduis la phrase</h2>
         <p className="leading-8 text-lg">
-          {tokens.map((tok, i) => (
-            <button
-              key={i}
-              onClick={() => setSelected(tok)}
-              className="underline decoration-dotted underline-offset-4 hover:bg-yellow-50 rounded px-1"
-              title="Cliquer pour voir la traduction"
-            >
-              {tok}
-            </button>
-          ))}
+          {phraseAffichee}
         </p>
       </article>
 
@@ -342,6 +335,22 @@ export default function Mission() {
             <span className="self-center text-rose-700">
               ❌ Presque. Attendu : <em className="underline">{expText}</em>
             </span>
+          )}
+          {last && !last.ok && (
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setLast(null)}
+                className="rounded-2xl border px-3 py-2 hover:bg-gray-50"
+              >
+                Réessayer
+              </button>
+              <button
+                onClick={next}
+                className="rounded-2xl bg-indigo-600 text-white px-3 py-2"
+              >
+                Phrase suivante ➜
+              </button>
+            </div>
           )}
           {notes.length > 0 && (
             <ul className="text-sm text-gray-700 list-disc pl-5">

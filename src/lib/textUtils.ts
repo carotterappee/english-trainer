@@ -1,56 +1,30 @@
-// --- normalisation unicode générique (pour le russe, etc.) ---
-export function normalizeAny(s: string) {
-  return s.toLowerCase()
-    .normalize("NFC")
-    .replace(/[^\p{Letter}\p{Number}\s']/gu, " ")
+// Outils de texte : comparaison tolérante & filtrage pour la traduction
+
+/** Normalise une réponse pour comparaison : 
+ * - minuscules, accents retirés
+ * - transforme les tirets cadratins/en-dash en tirets simples
+ * - remplace tirets/virgules/points/;:!? par espace
+ * - espace unique
+ */
+export function normalizeAnswer(s: string) {
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/\p{Diacritic}+/gu, "")
+    .replace(/[—–]/g, "-")
+    .replace(/[-.,;:!?]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-export function evaluateAnswerGeneric(expected: string, user: string, tolerance = 0.2) {
-  const e = normalizeAny(expected);
-  const u = normalizeAny(user);
-  if (!e || !u) return { ok: false, score: 0, notes: [] as string[] };
-  const d = levenshtein(e, u);
-  const thr = Math.max(1, Math.floor(e.length * tolerance));
-  const ok = d <= thr;
-  return { ok, score: ok ? 1 : Math.max(0, 1 - d / Math.max(1, e.length)), notes: [] as string[] };
-}
-// --- normalisation & tokenisation ---
-export function stripAccents(s: string) {
-  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
-export function normalizeFr(s: string) {
-  return stripAccents(s.toLowerCase())
-    .replace(/[^a-z0-9\s'-]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-export function splitWordsFr(s: string) {
-  return normalizeFr(s).split(" ").filter(Boolean);
+/** Vrai si c’est un “mot” traduisible (contient au moins une lettre) */
+export function isTranslatableToken(tok: string) {
+  return /[\p{Letter}]/u.test(tok || "");
 }
 
-// --- Levenshtein pour "petites fautes" ---
-export function levenshtein(a: string, b: string) {
-  const m = a.length, n = b.length;
-  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
-  for (let i = 0; i <= m; i++) dp[i][0] = i;
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      dp[i][j] = Math.min(
-        dp[i - 1][j] + 1,     // suppr
-        dp[i][j - 1] + 1,     // insertion
-        dp[i - 1][j - 1] + cost // substitution
-      );
-    }
-  }
-  return dp[m][n];
+/** Pour l’affichage, on remplace les vrais cadratins par une virgule douce */
+export function displayFriendly(s: string) {
+  return (s || "").replace(/[—–]/g, ", ");
 }
-
-// --- appariement "souple" mot à mot ---
-type Issue = "missing_final_s" | "accent" | "minor_typo";
 
 export function nearMatch(exp: string, got: string): { ok: boolean; issue?: Issue } {
   const e = normalizeFr(exp);
