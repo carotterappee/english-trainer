@@ -1,3 +1,12 @@
+import frEveryday from "./packs/fr_daily";
+import frExams from "./packs/fr_exams";
+
+export type FrItem = { fr: string; ru?: string };
+
+export function getSentencesFR(goal: "everyday" | "exams"): FrItem[] {
+  if (goal === "exams") return frExams;     // avec RU exactes
+  return frEveryday;                         // tes phrases de vie quotidienne (RU optionnel)
+}
 import enEveryday from "./packs/en_everyday";
 import enTravel   from "./packs/en_travel";
 import enWork     from "./packs/en_work";

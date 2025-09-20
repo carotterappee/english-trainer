@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { loadProfile } from "@/lib/profile";
 import { loadLevel, recordAnswer, targetWordRange, wordCount } from "@/lib/level";
 import { getSentences } from "@/content/sentences";
-import { sentencesFR } from "@/content/sentences_fr";
+import { getSentencesFR } from "@/content/sentences";
 import { applyVariant } from "@/lib/variant";
 import { translateWordGeneric } from "@/lib/bigdict";
 import type { DictResult } from "@/lib/bigdict";
@@ -55,7 +55,15 @@ export default function Mission() {
   type EnFr = { en: string; fr: string };
   type FrRu = { fr: string; ru: string };
   const bankBase = useMemo<EnFr[] | FrRu[]>(
-    () => (profile ? (isEn ? getSentences(profile.goal) as EnFr[] : sentencesFR as FrRu[]) : []),
+    () => {
+      if (!profile) return [];
+      if (isEn) return getSentences(profile.goal) as EnFr[];
+      // Pour FR, ne charge que si goal est 'everyday' ou 'exams'
+      if (profile.goal === "everyday" || profile.goal === "exams") {
+        return getSentencesFR(profile.goal) as FrRu[];
+      }
+      return [];
+    },
     [isEn, profile?.goal]
   );
   const bank = useMemo<EnFr[] | FrRu[]>(
@@ -81,13 +89,16 @@ export default function Mission() {
   let srcText = "";
   let expText = "";
   let tokens: string[] = [];
+  let expected: string | undefined = undefined;
   if (isEn && current && 'en' in current && 'fr' in current) {
     srcText = current.en;
     expText = current.fr;
+    expected = current.fr;
     tokens = current.en.split(" ");
-  } else if (!isEn && current && 'fr' in current && 'ru' in current) {
+  } else if (!isEn && current && 'fr' in current) {
     srcText = current.fr;
-    expText = current.ru;
+    expText = (current as any).ru ?? "";
+    expected = (current as any).ru;
     tokens = current.fr.split(" ");
   }
   const phraseAffichee = displayFriendly(srcText);
@@ -127,12 +138,11 @@ export default function Mission() {
     let alive = true;
     if (!selected) { setDict(null); return; }
     const src = isEn ? "en" : "fr";
-    // Sécurise profile et force tgt à 'en'|'fr'
-    const tgt: "en" | "fr" = isEn ? "fr" : (profile?.answerLang === "fr" ? "fr" : "en");
-    translateWordGeneric(selected, src, tgt, { ctxSentence: srcText })
+    const tgt = isEn ? "fr" : "ru";
+    translateWordGeneric(selected, src as any, tgt as any, { ctxSentence: srcText })
       .then((res) => { if (alive) setDict(res); });
     return () => { alive = false; };
-  }, [selected, isEn, profile?.answerLang, srcText]);
+  }, [selected, isEn, srcText]);
 
   if (!profile) return null;
 
@@ -167,8 +177,33 @@ export default function Mission() {
   }
 
   function check() {
-    if (!current || !profile) return;
-    const attempt = tries + 1;
+  const attempt = tries + 1;
+  // Mode FR : si pas de traduction RU fournie, on accepte toute réponse non vide
+  if (!isEn && (!expected || expected.trim() === "")) {
+      const ok = (answerFr || "").trim().length > 0;
+      setLast({ ok, expected: "(réponse libre)", user: answerFr });
+      if (ok) {
+        if (profile) addCoins(5, profile.goal);
+        setCoinPop(true);
+        setTimeout(() => setCoinPop(false), 1200);
+        const s = loadSession(); if (s) { s.coins += 5; s.attempts += 1; s.correct += 1; saveSession(s); }
+        if (profile) {
+          const st = recordAnswer(profile, { ok: true, tries: attempt });
+          setLvl(st.level);
+        }
+        setFeedback("ok");
+        setTimeout(() => {
+          setLast(null);
+          setFeedback("idle");
+          next();
+        }, 1200);
+      } else {
+        setFeedback("ko");
+        const s = loadSession(); if (s) { s.attempts += 1; saveSession(s); }
+      }
+      return;
+    }
+  if (!current || !profile) return;
     if (!normalizeAnswer(answerFr)) {
       setLast({ ok: false, expected: expText, user: answerFr });
       setFeedback("ko");

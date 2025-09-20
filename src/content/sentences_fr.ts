@@ -1,2 +1,2 @@
-import frRuBase from "./packs/fr_ru_base";
-export const sentencesFR = frRuBase; // + tu pourras ajouter d’autres packs plus tard
+import frEveryday from "./packs/fr_daily";
+export const sentencesFR = frEveryday; // (FR → RU)
