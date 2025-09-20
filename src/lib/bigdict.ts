@@ -1,161 +1,211 @@
-import { isTranslatableToken } from "@/lib/textUtils";
+// Dictionnaire FR→RU enrichi (définitions + notes)
+const FR_RU: Record<string, { defs: string[]; note?: string }> = {
+  "on": { defs: ["мы"], note: "pronom indéfini, souvent ‘nous’ en français familier" },
+  "se": { defs: ["ся", "себя"], note: "particule/префикс возвратности" },
+  "retrouve": { defs: ["встречаемся"], note: "1ᵖˡ : on se retrouve → ‘мы встречаемся’" },
+  "au": { defs: ["в", "к"], note: "selon le nom : au supermarché → в супермаркет" },
+  "supermarché": { defs: ["супермаркет"] },
+  "après": { defs: ["после"] },
+  "le": { defs: [], note: "определённый артикль (— в русском не переводится)" },
+  "travail": { defs: ["работа"] },
+  "n’oublie": { defs: ["не забудь"], note: "императив от oublier" },
+  "pas": { defs: [], note: "частица отрицания не (в паре с ne … pas)" },
+  "titre": { defs: ["заголовок", "название"] },
+  "je": { defs: ["я"] },
+  "cherche": { defs: ["ищу"] },
+  "une": { defs: [], note: "неопределённый артикль (— в русском не переводится)" },
+  "auberge": { defs: ["хостел", "недорогая гостиница"] },
+  "pas chère": { defs: ["недорогая"], note: "букв. ‘не дорогая’" },
+  "travaille": { defs: ["работаю"] },
+  "à": { defs: ["в", "у", "к"], note: "préposition à → в / у / к (⚠ accent grave distingue à (préposition) de a (= ‘a’ du verbe avoir))" },
+  "la": { defs: [], note: "определённый артикль ж.р. (—)" },
+  "maison": { defs: ["дом", "дома"], note: "в выражении à la maison → дома" },
+  "vendredi": { defs: ["пятница"], note: "в пятницу → в пятницу" },
+  "écrit": { defs: ["напиши"], note: "(mieux Écris impératif) → напиши (от écrire)" },
+  "un": { defs: [], note: "неопределённый артикль (—)" },
+  "court": { defs: ["короткий"] },
+  "email": { defs: ["электронное письмо", "имейл"] },
+  "à (dans à ton professeur)": { defs: ["к"] },
+  "ton": { defs: ["твой", "твоя", "твоё", "твоему"], note: "зависит от падежа; ici: к твоему" },
+  "professeur": { defs: ["преподаватель", "учитель"] },
+};
 // Traduction générique multilingue (offline EN→FR, sinon fallback+cache)
 
-// Dictionnaire EN↔FR soigné + petites règles (contractions, pluriels, -ing/-ed)
-// AUCUN appel API. On retourne 1–3 sens courants, propres.
+// Dictionnaire EN↔FR soigné + expressions + notes (aucun fetch externe).
+export type DictResult = {
+  defs: string[];                // sens principaux (max ~3)
+  note?: string;                 // explication grammaticale / usage
+  variants?: string[];           // variantes UK/US utiles
+  phrase?: { text: string; defs: string[]; note?: string }; // si une expression est détectée dans la phrase
+};
 
 const EN_FR: Record<string, string[]> = {
-  // pronoms / basiques
-  "you": ["tu", "vous"],
-  "your": ["ton/ta/tes", "votre/vos"],
-  "yours": ["le tien/la tienne/les tiens", "le vôtre/la vôtre/les vôtres"],
-  "i": ["je"], "me": ["moi"], "my": ["mon/ma/mes"], "we": ["nous"], "our": ["notre/nos"],
-  "they": ["ils/elles"], "their": ["leur/leurs"], "he": ["il"], "she": ["elle"], "it": ["il/elle (objet)"],
-  "this": ["ce/cet/cette"], "that": ["ce/cet/cette (là)"], "these": ["ces"], "those": ["ces (là-bas)"],
+  // basiques / déterminants / gram.
+  "a": ["un/une"], "the": ["le/la/les"], "of": ["de"], "for": ["pour"], "and": ["et"],
+  "on": ["sur", "(jour/date) —"], "in": ["dans", "en"], "to": ["à"], "with": ["avec"],
 
-  // contractions
-  "it's": ["c’est"],
-  "that's": ["c’est", "cela"],
-  "there's": ["il y a"],
-  "let's": ["on …", "allons …", "faisons …"],
-  "i'm": ["je suis"], "you're": ["tu es", "vous êtes"], "we're": ["nous sommes"], "they're": ["ils/elles sont"],
-  "i've": ["j’ai"], "you've": ["tu as", "vous avez"], "we've": ["nous avons"],
-  "i'd": ["je voudrais", "je ferais"], "you'd": ["tu voudrais", "vous feriez"],
-  "i'll": ["je vais", "je ferai"], "you'll": ["tu vas", "vous ferez"],
+  // pronoms
+  "you": ["tu", "vous"], "your": ["ton/ta/tes", "votre/vos"],
+  "it": ["ça", "il/elle (chose)"], "that's": ["c’est"], "it's": ["c’est"],
 
-  // mots polysémiques (sens les + courants en premier)
-  "way": ["façon", "manière", "chemin"],
-  "break": ["pause", "casser", "rupture"],
-  "get": ["obtenir", "recevoir", "devenir"],
-  "take": ["prendre"],
-  "make": ["faire", "fabriquer"],
-  "do": ["faire"],
-  "go": ["aller"],
-  "come": ["venir"],
-  "need": ["avoir besoin de"],
-  "want": ["vouloir"],
-  "know": ["savoir", "connaître"],
-  "work": ["travail", "travailler"],
-  "time": ["temps", "heure (horaire)"],
-  "thing": ["chose", "truc"],
-  "people": ["gens"],
-  "home": ["maison", "chez moi"],
-  "park": ["parc"],
-  "coffee": ["café"],
-  "ticket": ["billet", "ticket"],
-  "museum": ["musée"],
+  // modaux / auxiliaires
+  "can": ["pouvoir"], "have": ["avoir"], "is": ["est"],
 
-  // formules usuelles
-  "hello": ["bonjour"], "hi": ["salut"],
-  "thanks": ["merci"], "thank you": ["merci"],
-  "sorry": ["désolé(e)"],
-  "please": ["s’il te plaît", "s’il vous plaît"],
-  "bye": ["au revoir"],
+  // fréquence / adjectifs fréquents
+  "quick": ["rapide"], "short": ["court"], "nearby": ["à proximité", "près d’ici"], "any": ["des", "le moindre"],
 
-  // jours / fréquence
-  "usually": ["d’habitude"], "often": ["souvent"], "sometimes": ["parfois"], "always": ["toujours"],
+  // nom/verbes que tu as cités
+  "summary": ["résumé", "synthèse"], "risks": ["risques"], "risk": ["risque"],
+  "turnaround": ["délai de traitement", "temps d’exécution"],
+  "scope": ["périmètre"], "sprint": ["sprint (Agile)"],
+  "some": ["du/de la/des"], "bread": ["pain"],
+  "worry": ["s’inquiéter"], "happens": ["ça arrive"], "happen": ["se produire", "arriver"],
+  "recommendations": ["recommandations", "suggestions"], "recommendation": ["recommandation", "suggestion"],
+  "how": ["comment"], "long": ["long", "longue durée"],
+  "taxi": ["taxi"], "airport": ["aéroport"],
+  "seat": ["siège", "place"], "taken": ["pris/pris(e)"], // note contextuelle plus bas
+  "like": ["aimer", "plaire à"], "check": ["vérifier"], "please": ["s’il te plaît", "s’il vous plaît"],
+  "spelling": ["orthographe"], "before": ["avant"], "submitting": ["envoyer", "soumettre"],
+  "state": ["énoncer", "indiquer"], "opinion": ["opinion", "avis"], "justify": ["justifier"],
+  "write": ["écrire"], "email": ["e-mail", "courriel"], "teacher": ["professeur", "enseignant"],
+
+  // voyages / quotidiens déjà dans tes packs (on complète quelques clés simples)
+  "taxiway": ["voie de circulation (aéroport)"], // pour éviter collision sur 'taxi' + 'way'
 };
 
 const FR_EN: Record<string, string[]> = {
-  "tu": ["you (informel)"], "vous": ["you (politesse)"],
-  "ton": ["your"], "ta": ["your"], "tes": ["your"],
-  "votre": ["your"], "vos": ["your"],
+  // (utile si tu fais FR→EN)
   "bonjour": ["hello"], "salut": ["hi"],
-  "merci": ["thanks", "thank you"], "désolé": ["sorry"], "désolée": ["sorry"],
-  "s’il te plaît": ["please"], "s’il vous plaît": ["please"],
-  "pause": ["break"], "casser": ["break"], "façon": ["way"], "manière": ["way"], "chemin": ["way", "path", "route"],
-  "maison": ["home"], "parc": ["park"], "musée": ["museum"], "billet": ["ticket"], "ticket": ["ticket"],
-  "gens": ["people"], "truc": ["thing"], "chose": ["thing"],
-  "temps": ["time"], "heure": ["hour", "time (schedule)"],
-  "souvent": ["often"], "parfois": ["sometimes"], "toujours": ["always"], "d’habitude": ["usually"],
-  "c’est": ["it’s", "that’s"], "il y a": ["there is", "there are"],
+  "pause": ["break"], "façon": ["way"], "manière": ["way"], "chemin": ["way", "path"],
+  "ticket": ["ticket"], "billet": ["ticket"], "musée": ["museum"], "parc": ["park"], "maison": ["home"],
+  "orthographe": ["spelling"], "avis": ["opinion"], "opinion": ["opinion"],
 };
 
-// contractions usuelles → on normalise (pour cliquer "It’s" ou "Let’s")
-const CONTRA_EQUIV: Record<string, string> = {
-  "it’s": "it's", "let’s": "let's", "c’est": "c'est" // (au cas où)
+// Expressions multi-mots fréquentes qu’on veut reconnaître dans la phrase complète
+const PHRASES_EN_FR: Array<{ rx: RegExp; text: string; defs: string[]; note?: string }> = [
+  { rx: /\bcheck[- ]?in\b/i, text: "check in", defs: ["s’enregistrer (hôtel/aéroport)"], note: "verbe à particule : ‘check in’ ≠ ‘check’ + ‘in’ séparés" },
+  { rx: /\bout of scope\b/i, text: "out of scope", defs: ["hors périmètre (du sprint/projet)"] },
+  { rx: /\bturnaround (time)?\b/i, text: "turnaround (time)", defs: ["délai de traitement", "temps d’exécution"] },
+  { rx: /\bhow long\b/i, text: "how long", defs: ["combien de temps"] },
+  { rx: /\bdon'?t worry\b/i, text: "don’t worry", defs: ["ne t’inquiète pas", "t’inquiète"], note: "forme négative : don’t = do not" },
+  { rx: /\bis this (seat|place) taken\b/i, text: "is this seat taken?", defs: ["cette place est-elle prise ?"], note: "voix passive : ‘is + taken’ = ‘est prise’" },
+];
+
+const VARIANTS: Record<string, string[]> = {
+  "fries": ["(US) fries = frites", "(UK) chips = frites"],
+  "chips": ["(UK) chips = frites", "(US) chips = ‘crisps’ (UK) = chips (de pomme de terre)"],
+  "crisps": ["(UK) crisps = chips (US) = ‘chips’ en français"],
+  "elevator": ["(US) elevator / (UK) lift"], "lift": ["(UK) lift / (US) elevator"],
+  "apartment": ["(US) apartment / (UK) flat"], "flat": ["(UK) flat / (US) apartment"],
 };
 
-// Lemmas très simples (→ base verbale / singulier)
+const CONTRA_EQUIV: Record<string, string> = { "it’s": "it's", "that’s": "that's", "let’s": "let's" };
+
 function lemmaEn(word: string) {
   let w = word.toLowerCase();
   if (CONTRA_EQUIV[w]) w = CONTRA_EQUIV[w];
   if (EN_FR[w]) return w;
-
-  // pluriel simple
   if (w.endsWith("s") && EN_FR[w.slice(0, -1)]) return w.slice(0, -1);
-
-  // -ing / -ed
-  if (w.endsWith("ing") && EN_FR[w.slice(0, -3)]) return w.slice(0, -3);      // taking -> take
-  if (w.endsWith("ed")  && EN_FR[w.slice(0, -2)]) return w.slice(0, -2);      // worked -> work
-
-  // irréguliers courants
-  if (w === "broke" || w === "broken") return "break";
-  if (w === "went") return "go";
-  if (w === "came") return "come";
-  if (w === "made") return "make";
-  if (w === "did") return "do";
-  if (w === "got") return "get";
-  if (w === "took") return "take";
-  if (w === "knew") return "know";
-  return w;
+  if (w.endsWith("ing") && EN_FR[w.slice(0, -3)]) return w.slice(0, -3);
+  if (w.endsWith("ed") && EN_FR[w.slice(0, -2)]) return w.slice(0, -2);
+  // irréguliers fréquents
+  const irr: Record<string, string> = { broke: "break", broken: "break", went: "go", came: "come", made: "make", did: "do", got: "get", took: "take", knew: "know" };
+  return irr[w] || w;
 }
+
 function lemmaFr(word: string) {
-  let w = word.toLowerCase();
-  // normaliser apostrophe typographique
-  w = w.replace(/’/g, "'");
+  let w = word.toLowerCase().replace(/’/g, "'");
   if (FR_EN[w]) return w;
-
-  // élisions
-  if (w.startsWith("l'") || w.startsWith("l’")) return w.slice(2);
-  if (w.startsWith("c'") || w.startsWith("c’")) return "c’est";
-
-  // singulier approximatif
+  if (w.startsWith("l'")) return w.slice(2);
+  if (w.startsWith("c'")) return "c’est";
   if (w.endsWith("es") && FR_EN[w.slice(0, -2)]) return w.slice(0, -2);
-  if (w.endsWith("s")  && FR_EN[w.slice(0, -1)]) return w.slice(0, -1);
+  if (w.endsWith("s") && FR_EN[w.slice(0, -1)]) return w.slice(0, -1);
   return w;
 }
 
-function topMeanings(arr?: string[] | null, n = 3): string[] | null {
-  if (!arr || arr.length === 0) return null;
-  const uniq = Array.from(new Set(arr));
-  return uniq.slice(0, n);
-}
+function uniqTop(arr?: string[], n = 3) { return arr ? Array.from(new Set(arr)).slice(0, n) : undefined; }
 
-/** Traduction locale propre, SANS API.
- * src: "en" | "fr" ; tgt: "fr" | "en"
+/** Traduction locale propre, avec détection d’expression et note grammaticale. 
+ *  Passe la phrase source dans `ctxSentence` quand tu peux pour meilleures notes.
  */
-export async function translateWordGeneric(token: string, src: "en" | "fr", tgt: "fr" | "en"): Promise<string[] | null> {
+export async function translateWordGeneric(
+  token: string,
+  src: "en" | "fr",
+  tgt: "fr" | "en" | "ru",
+  opts?: { ctxSentence?: string }
+): Promise<DictResult | null> {
   if (!token) return null;
 
+  // ——— EN -> FR ———
   if (src === "en" && tgt === "fr") {
     const base = lemmaEn(token);
-    // cas spéciaux PRIORITAIRES
-    if (base === "you")  return ["tu", "vous"];
-    if (base === "your") return ["ton/ta/tes", "votre/vos"];
-    if (base === "it's") return ["c’est"];
-    if (base === "let's") return ["on …", "allons …", "faisons …"];
+    const res: DictResult = { defs: [] };
 
-    // dico direct
-    const hit = EN_FR[base];
-    if (hit) return topMeanings(hit);
+    // expressions repérées dans la phrase complète
+    if (opts?.ctxSentence) {
+      const s = opts.ctxSentence.toLowerCase();
+      const hit = PHRASES_EN_FR.find(p => p.rx.test(s));
+      if (hit) res.phrase = { text: hit.text, defs: hit.defs, note: hit.note };
+    }
 
-    // fallback léger: forme sans 's' ni -ing/-ed déjà gérés, sinon rien
-    return null;
+    // cas pédagogiques
+    if (base === "i'd") {
+      // si “i’d like …” → “je voudrais …”
+      if (opts?.ctxSentence?.toLowerCase().includes("i'd like")) {
+        res.defs = ["je voudrais"];
+        res.note = "I’d = I would (souhait poli). ‘I’d like’ = ‘je voudrais’.";
+        return res;
+      }
+      res.defs = ["je voudrais", "j’aurais / j’avais"];
+      res.note = "I’d = I would / I had (selon le contexte).";
+      return res;
+    }
+    if (base === "i'll") { res.defs = ["je vais", "je ferai"]; res.note = "I’ll = I will."; return res; }
+    if (base === "don't") { res.defs = ["ne … pas"]; res.note = "don’t = do not (négation)."; return res; }
+
+    if (base === "taken") {
+      res.defs = ["pris(e)"];
+      res.note = "‘taken’ = participe passé de ‘take’. Ex: ‘Is this seat taken?’ → ‘Cette place est-elle prise ?’ (voix passive).";
+      return res;
+    }
+
+    // dico simple
+    const main = EN_FR[base];
+    if (main) res.defs = uniqTop(main) ?? [];
+
+    // variantes UK/US
+    const v = VARIANTS[base];
+    if (v) res.variants = v;
+
+    // petites préférences de sens
+    if (base === "break") res.defs = ["pause", "casser", "rupture"];
+    if (base === "way") res.defs = ["façon", "manière", "chemin"];
+
+    // contractions triviales
+    if (base === "that's") res.note = "That’s = that is → ‘c’est’.";
+    if (base === "it's")  res.note = "It’s = it is → ‘c’est’.";
+
+    return res.defs.length || res.phrase ? res : null;
   }
 
+  // ——— FR -> EN ———
   if (src === "fr" && tgt === "en") {
     const base = lemmaFr(token);
-    const hit = FR_EN[base];
-    if (hit) return topMeanings(hit);
+    const defs = FR_EN[base];
+    return defs ? { defs: uniqTop(defs) ?? [] } : null;
+  }
+
+  // ——— FR -> RU ———
+  if (src === "fr" && tgt === "ru") {
+    const base = token.toLowerCase();
+    const entry = FR_RU[base];
+    if (entry) return { defs: entry.defs, note: entry.note };
     return null;
   }
 
+  // fallback explicite
   return null;
 }
-// (tout le code fallback en ligne supprimé, tout est offline)
-// Dictionnaire EN->FR chunké par 1ère lettre (public/dict/enfr-chunks/<letter>.json)
-// → essaie OFFLINE (chunks + lemmes + variantes UK/US), sinon FALLBACK en ligne
 export type DictEntry = string[];
 type Chunk = Record<string, DictEntry>;
 

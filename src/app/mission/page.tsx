@@ -9,7 +9,8 @@ import { loadLevel, recordAnswer, targetWordRange, wordCount } from "@/lib/level
 import { getSentences } from "@/content/sentences";
 import { sentencesFR } from "@/content/sentences_fr";
 import { applyVariant } from "@/lib/variant";
-import { preloadForSentence, translateWordGeneric } from "@/lib/bigdict";
+import { translateWordGeneric } from "@/lib/bigdict";
+import type { DictResult } from "@/lib/bigdict";
 import { isPassed, markSeen, sentenceId } from "@/lib/seenStore";
 import { normalizeAnswer, displayFriendly, isTranslatableToken, answersEqual, frenchHints } from "@/lib/textUtils";
 import Correction from "@/components/Correction";
@@ -91,7 +92,7 @@ export default function Mission() {
   }
   const phraseAffichee = displayFriendly(srcText);
   const scorePct = attempts ? Math.round((correctCount / attempts) * 100) : 0;
-  const [translations, setTranslations] = useState<string[]|null>(null);
+  const [dict, setDict] = useState<DictResult | null>(null);
 
   // Redirection si pas de profil
   useEffect(() => {
@@ -117,20 +118,21 @@ export default function Mission() {
   }, [scorePct]);
 
   // Préchargement dictionnaire pour la phrase courante (EN)
-  useEffect(() => {
-    if (isEn && current && 'en' in current) preloadForSentence(current.en);
-  }, [current, isEn]);
+  // useEffect(() => {
+  //   if (isEn && current && 'en' in current) preloadForSentence(current.en);
+  // }, [current, isEn]);
 
-  // Traduction du mot sélectionné
+  // Traduction du mot sélectionné (nouvelle version enrichie)
   useEffect(() => {
     let alive = true;
-    if (!selected) return setTranslations(null);
+    if (!selected) { setDict(null); return; }
     const src = isEn ? "en" : "fr";
-    // Correction forcée : tgt ne peut être que "en" ou "fr"
-    const tgt: "en" | "fr" = isEn ? "fr" : "en";
-    translateWordGeneric(selected, src, tgt).then((res) => { if (alive) setTranslations(res); });
+    // Sécurise profile et force tgt à 'en'|'fr'
+    const tgt: "en" | "fr" = isEn ? "fr" : (profile?.answerLang === "fr" ? "fr" : "en");
+    translateWordGeneric(selected, src, tgt, { ctxSentence: srcText })
+      .then((res) => { if (alive) setDict(res); });
     return () => { alive = false; };
-  }, [selected, isEn]);
+  }, [selected, isEn, profile?.answerLang, srcText]);
 
   if (!profile) return null;
 
@@ -289,31 +291,45 @@ export default function Mission() {
           onSelect={(tok: string) => {
             if (!isTranslatableToken(tok)) return;
             setSelected(tok);
-            setTranslations(null);
+            setDict(null);
           }}
         />
       </article>
 
-      {/* Panneau mot + ajout */}
-      {selected && (
-        <div className="p-4 rounded-2xl border bg-white flex items-center justify-between gap-4">
-          <div>
-            <div className="text-sm text-gray-500">Mot sélectionné</div>
-            <div className="text-lg font-medium">{selected}</div>
-            <div className="text-gray-700">
-              {translations ? translations.slice(0,3).join(" · ") : "…"}
-            </div>
+      {/* Panneau mot + ajout enrichi */}
+      {selected && dict && (
+        <div className="mt-3 rounded-2xl border bg-white/80 backdrop-blur px-3 py-2 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">“{selected}”</span>
+            <span>→ {dict.defs.join(", ")}</span>
+            <button
+              onClick={() => import("@/lib/wordStore").then(({ addWord }) => addWord(
+                isEn ? selected! : dict.defs[0],
+                isEn ? dict.defs[0] : selected!
+              ))}
+              className="ml-auto rounded-xl bg-emerald-600 text-white px-3 py-1.5"
+            >
+              + Ajouter à mes mots
+            </button>
           </div>
-          <button
-            onClick={() => {
-              const first = translations?.[0] ?? "(?)";
-        import("@/lib/wordStore").then(({ addWord }) => addWord(selected, first));
-  import("@/lib/wordStore").then(({ addWord }) => addWord(selected, first));
-            }}
-            className="px-4 py-2 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
-          >
-            ➕ Ajouter à ma liste
-          </button>
+          {dict.phrase && (
+            <div className="mt-1 text-gray-700">
+              <span className="text-xs rounded-full border px-2 py-0.5 mr-2">Expression</span>
+              <span className="font-medium">{dict.phrase.text}</span>
+              <span> → {dict.phrase.defs.join(", ")}</span>
+              {dict.phrase.note && <div className="text-xs text-gray-500">{dict.phrase.note}</div>}
+            </div>
+          )}
+          {dict.variants && (
+            <div className="mt-1 text-xs text-gray-500">
+              Variantes : {dict.variants.join(" · ")}
+            </div>
+          )}
+          {dict.note && (
+            <div className="mt-1 text-xs text-gray-500">
+              {dict.note}
+            </div>
+          )}
         </div>
       )}
 
