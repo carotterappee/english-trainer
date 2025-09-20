@@ -28,8 +28,16 @@ function Cloud({ style }: { style?: CSSVars }) {
 
 export default function CloudBackground() {
   const [ok, setOk] = useState(false);
-  useEffect(() => { setOk(getSelected() === "clouds"); }, []);
-  if (!ok) return null;
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const update = () => setShow(document.documentElement.getAttribute("data-theme") === "clouds");
+    update();
+    const obs = new MutationObserver(update);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    window.addEventListener("themechange", update);
+    return () => { obs.disconnect(); window.removeEventListener("themechange", update); };
+  }, []);
+  if (!show) return null;
   return (
     <div className="clouds pointer-events-none" aria-hidden>
       {/* ciel dégradé */}

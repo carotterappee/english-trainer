@@ -1,3 +1,12 @@
+const DYN_TZ  = "themes:dynamic:tz:v1"; // ex: "Europe/Paris" ou "auto"
+// ---- Dynamic (jour/nuit) ----
+export function getDynamicTZ(): string {
+  if (typeof window === "undefined") return "Europe/Paris";
+  return localStorage.getItem(DYN_TZ) || "Europe/Paris";
+}
+export function setDynamicTZ(tz: string) {
+  localStorage.setItem(DYN_TZ, tz);
+}
 import type { ThemeId } from "./themes";
 const OWNED = "themes:owned:v1";
 const SELECTED = "themes:selected:v1";

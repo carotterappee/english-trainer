@@ -19,7 +19,11 @@ export default function Home() {
   return (
     <main className="relative min-h-screen flex items-center justify-center p-6">
       <CloudBackground />
-      {/* Night stars / Sunset waves overlays */}
+      {/* Overlays décoratifs */}
+      <div className="moon" />
+      <div className="stars l1" />
+      <div className="stars l2" />
+      <div className="meteor" />
       <div className="stars" />
       <div className="waves" />
       <div className="relative z-10 w-full max-w-md bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-8 space-y-6">
