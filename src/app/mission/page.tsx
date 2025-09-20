@@ -11,10 +11,11 @@ import { sentencesFR } from "@/content/sentences_fr";
 import { applyVariant } from "@/lib/variant";
 import { preloadForSentence, translateWordGeneric } from "@/lib/bigdict";
 import { isPassed, markSeen, sentenceId } from "@/lib/seenStore";
-import { normalizeAnswer, displayFriendly, isTranslatableToken, answersEqual } from "@/lib/textUtils";
+import { normalizeAnswer, displayFriendly, isTranslatableToken, answersEqual, frenchHints } from "@/lib/textUtils";
+import Correction from "@/components/Correction";
 import { VARIANT_FLAG, GOAL_LABEL } from "@/lib/profile";
 import { addCoins } from "@/lib/coins";
-import { loadSession, saveSession, clearSession as clearSess, secondsLeft, startSession } from "@/lib/session";
+import { finalizeSession, clearSession, loadSession, saveSession, secondsLeft, startSession } from "@/lib/session";
 import Timer from "@/components/Timer";
 // Typage pour l'accès window custom
 type SessionWindow = Window & { __sessionScore?: number; __sessionMinutes?: number };
@@ -24,7 +25,7 @@ import Coin from "@/components/Coin";
 // Ajoutez ici d'autres imports de composants si besoin
 
 export default function Mission() {
-  const [last, setLast] = useState<{ ok: boolean } | null>(null);
+  const [last, setLast] = useState<{ ok: boolean; expected: string; user: string; notes?: string[] } | null>(null);
   const router = useRouter();
   const profile = loadProfile();
   // État global pour le nombre d'essais sur la phrase courante
@@ -165,11 +166,10 @@ export default function Mission() {
     if (!current || !profile) return;
     const attempt = tries + 1;
     if (!normalizeAnswer(answerFr)) {
-      setLast({ ok: false });
+      setLast({ ok: false, expected: expText, user: answerFr });
       return;
     }
     const ok = answersEqual(answerFr, expText);
-    setLast({ ok });
     setTries(attempt);
     if (ok) {
       addCoins(5, profile.goal);
@@ -177,9 +177,12 @@ export default function Mission() {
       if (s) { s.coins += 5; s.attempts += 1; s.correct += 1; saveSession(s); }
       const st = recordAnswer(profile, { ok: true, tries: attempt });
       setLvl(st.level);
+      setLast({ ok: true, expected: expText, user: answerFr });
       next();
       return;
     } else {
+      const notes = isEn ? frenchHints(expText, answerFr) : [];
+      setLast({ ok: false, expected: expText, user: answerFr, notes });
       const s = loadSession();
       if (s) { s.attempts += 1; saveSession(s); }
       const st = recordAnswer(profile, { ok: false, tries: attempt });
@@ -255,9 +258,8 @@ export default function Mission() {
           initialLeft={left}
           onTick={(n) => setLeft(n)}
           onElapsed={() => {
+            finalizeSession(lvl);   // 👈 journalise la session du jour
             setEnded(true);
-            const s = loadSession();
-            if (s) { s.ended = true; saveSession(s); }
           }}
         />
         <div className="ml-auto flex items-center gap-2">
@@ -336,20 +338,13 @@ export default function Mission() {
             </span>
           )}
           {last && !last.ok && (
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={() => setLast(null)}
-                className="rounded-2xl border px-3 py-2 hover:bg-gray-50"
-              >
-                Réessayer
-              </button>
-              <button
-                onClick={next}
-                className="rounded-2xl bg-indigo-600 text-white px-3 py-2"
-              >
-                Phrase suivante ➜
-              </button>
-            </div>
+            <Correction
+              expected={last.expected}
+              user={last.user}
+              notes={last.notes || []}
+              onRetry={() => { setLast(null); }}
+              onNext={() => { setLast(null); next(); }}
+            />
           )}
           {notes.length > 0 && (
             <ul className="text-sm text-gray-700 list-disc pl-5">
@@ -374,7 +369,11 @@ export default function Mission() {
                 Ouvrir le coffre 🧰
               </button>
               <button
-                onClick={() => { clearSess(); location.assign("/"); }}
+                onClick={() => {
+                  finalizeSession(lvl);   // 👈 écrit dans /progress
+                  clearSession();         // pour ne plus proposer “Continuer”
+                  location.assign("/");   // retour home
+                }}
                 className="rounded-2xl border py-2"
               >
                 Retour à l’accueil

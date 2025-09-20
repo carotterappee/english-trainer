@@ -1,8 +1,10 @@
 import type { UserProfile } from "@/lib/profile";
+import { loadLevel } from "@/lib/level";
+import { addProgress, type ProgressEntry } from "@/lib/progress";
 
 export type Session = {
   startedAt: string;        // ISO
-  durationSec: number;      // 300 / 600 / 900 / 1200
+  durationSec: number;     // 300 / 600 / 900 / 1200
   course: NonNullable<UserProfile["course"]>;
   answerLang: NonNullable<UserProfile["answerLang"]>;
   variant: UserProfile["variant"];
@@ -11,6 +13,8 @@ export type Session = {
   attempts: number;
   correct: number;
   ended?: boolean;
+  // ⬇️ nouveau
+  levelStart?: number;
 };
 
 const KEY = "session:v1";
@@ -27,23 +31,51 @@ export function saveSession(s: Session) {
 export function clearSession() {
   localStorage.removeItem(KEY);
 }
+
 export function startSession(profile: UserProfile, durationMin: number) {
+  const course = profile.course ?? "en";
+  const levelStart = loadLevel(course, profile.goal).level; // 👈 capture le niveau au début
   const s: Session = {
     startedAt: new Date().toISOString(),
     durationSec: Math.max(300, durationMin * 60),
-    course: profile.course ?? "en",
+    course,
     answerLang: profile.answerLang ?? "fr",
     variant: profile.variant,
     goal: profile.goal,
     coins: 0,
     attempts: 0,
     correct: 0,
+    levelStart,
   };
   saveSession(s);
-  // mémorise la préférence
   try { localStorage.setItem(PREF_KEY, String(durationMin)); } catch {}
   return s;
 }
+
+// ⬇️ appelle ceci quand le timer finit OU quand l’utilisateur quitte la mission
+export function finalizeSession(levelEnd?: number): ProgressEntry | null {
+  const s = loadSession();
+  if (!s || s.ended) return null;
+
+  const day = new Date(s.startedAt).toISOString().slice(0, 10);
+  const entry: ProgressEntry = {
+    date: day,
+    startedAt: s.startedAt,
+    durationSec: s.durationSec,
+    attempts: s.attempts,
+    correct: s.correct,
+    coins: s.coins,
+    course: s.course,
+    goal: s.goal,
+    levelStart: s.levelStart,
+    levelEnd,
+  };
+  addProgress(entry);
+  s.ended = true;
+  saveSession(s);
+  return entry;
+}
+
 export function preferredDurationMin(): number {
   try { return Number(localStorage.getItem(PREF_KEY) || "15"); } catch { return 15; }
 }
