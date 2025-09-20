@@ -114,7 +114,7 @@ function lemmaEn(word: string) {
 }
 
 function lemmaFr(word: string) {
-  let w = word.toLowerCase().replace(/’/g, "'");
+  const w = word.toLowerCase().replace(/’/g, "'");
   if (FR_EN[w]) return w;
   if (w.startsWith("l'")) return w.slice(2);
   if (w.startsWith("c'")) return "c’est";
