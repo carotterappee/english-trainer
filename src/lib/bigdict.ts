@@ -1,37 +1,159 @@
+import { isTranslatableToken } from "@/lib/textUtils";
 // Traduction générique multilingue (offline EN→FR, sinon fallback+cache)
-export async function translateWordGeneric(word: string, src: string, tgt: string): Promise<string[]> {
-  // Offline dispo seulement pour en->fr; sinon fallback en ligne + cache par paire src>tgt
-  const key = `${src}>${tgt}:${normalizeEn(word)}`;
-  const fromCache = (() => { try { return JSON.parse(localStorage.getItem(key) || "null"); } catch { return null; } })();
-  if (fromCache) return fromCache;
+
+// Dictionnaire EN↔FR soigné + petites règles (contractions, pluriels, -ing/-ed)
+// AUCUN appel API. On retourne 1–3 sens courants, propres.
+
+const EN_FR: Record<string, string[]> = {
+  // pronoms / basiques
+  "you": ["tu", "vous"],
+  "your": ["ton/ta/tes", "votre/vos"],
+  "yours": ["le tien/la tienne/les tiens", "le vôtre/la vôtre/les vôtres"],
+  "i": ["je"], "me": ["moi"], "my": ["mon/ma/mes"], "we": ["nous"], "our": ["notre/nos"],
+  "they": ["ils/elles"], "their": ["leur/leurs"], "he": ["il"], "she": ["elle"], "it": ["il/elle (objet)"],
+  "this": ["ce/cet/cette"], "that": ["ce/cet/cette (là)"], "these": ["ces"], "those": ["ces (là-bas)"],
+
+  // contractions
+  "it's": ["c’est"],
+  "that's": ["c’est", "cela"],
+  "there's": ["il y a"],
+  "let's": ["on …", "allons …", "faisons …"],
+  "i'm": ["je suis"], "you're": ["tu es", "vous êtes"], "we're": ["nous sommes"], "they're": ["ils/elles sont"],
+  "i've": ["j’ai"], "you've": ["tu as", "vous avez"], "we've": ["nous avons"],
+  "i'd": ["je voudrais", "je ferais"], "you'd": ["tu voudrais", "vous feriez"],
+  "i'll": ["je vais", "je ferai"], "you'll": ["tu vas", "vous ferez"],
+
+  // mots polysémiques (sens les + courants en premier)
+  "way": ["façon", "manière", "chemin"],
+  "break": ["pause", "casser", "rupture"],
+  "get": ["obtenir", "recevoir", "devenir"],
+  "take": ["prendre"],
+  "make": ["faire", "fabriquer"],
+  "do": ["faire"],
+  "go": ["aller"],
+  "come": ["venir"],
+  "need": ["avoir besoin de"],
+  "want": ["vouloir"],
+  "know": ["savoir", "connaître"],
+  "work": ["travail", "travailler"],
+  "time": ["temps", "heure (horaire)"],
+  "thing": ["chose", "truc"],
+  "people": ["gens"],
+  "home": ["maison", "chez moi"],
+  "park": ["parc"],
+  "coffee": ["café"],
+  "ticket": ["billet", "ticket"],
+  "museum": ["musée"],
+
+  // formules usuelles
+  "hello": ["bonjour"], "hi": ["salut"],
+  "thanks": ["merci"], "thank you": ["merci"],
+  "sorry": ["désolé(e)"],
+  "please": ["s’il te plaît", "s’il vous plaît"],
+  "bye": ["au revoir"],
+
+  // jours / fréquence
+  "usually": ["d’habitude"], "often": ["souvent"], "sometimes": ["parfois"], "always": ["toujours"],
+};
+
+const FR_EN: Record<string, string[]> = {
+  "tu": ["you (informel)"], "vous": ["you (politesse)"],
+  "ton": ["your"], "ta": ["your"], "tes": ["your"],
+  "votre": ["your"], "vos": ["your"],
+  "bonjour": ["hello"], "salut": ["hi"],
+  "merci": ["thanks", "thank you"], "désolé": ["sorry"], "désolée": ["sorry"],
+  "s’il te plaît": ["please"], "s’il vous plaît": ["please"],
+  "pause": ["break"], "casser": ["break"], "façon": ["way"], "manière": ["way"], "chemin": ["way", "path", "route"],
+  "maison": ["home"], "parc": ["park"], "musée": ["museum"], "billet": ["ticket"], "ticket": ["ticket"],
+  "gens": ["people"], "truc": ["thing"], "chose": ["thing"],
+  "temps": ["time"], "heure": ["hour", "time (schedule)"],
+  "souvent": ["often"], "parfois": ["sometimes"], "toujours": ["always"], "d’habitude": ["usually"],
+  "c’est": ["it’s", "that’s"], "il y a": ["there is", "there are"],
+};
+
+// contractions usuelles → on normalise (pour cliquer "It’s" ou "Let’s")
+const CONTRA_EQUIV: Record<string, string> = {
+  "it’s": "it's", "let’s": "let's", "c’est": "c'est" // (au cas où)
+};
+
+// Lemmas très simples (→ base verbale / singulier)
+function lemmaEn(word: string) {
+  let w = word.toLowerCase();
+  if (CONTRA_EQUIV[w]) w = CONTRA_EQUIV[w];
+  if (EN_FR[w]) return w;
+
+  // pluriel simple
+  if (w.endsWith("s") && EN_FR[w.slice(0, -1)]) return w.slice(0, -1);
+
+  // -ing / -ed
+  if (w.endsWith("ing") && EN_FR[w.slice(0, -3)]) return w.slice(0, -3);      // taking -> take
+  if (w.endsWith("ed")  && EN_FR[w.slice(0, -2)]) return w.slice(0, -2);      // worked -> work
+
+  // irréguliers courants
+  if (w === "broke" || w === "broken") return "break";
+  if (w === "went") return "go";
+  if (w === "came") return "come";
+  if (w === "made") return "make";
+  if (w === "did") return "do";
+  if (w === "got") return "get";
+  if (w === "took") return "take";
+  if (w === "knew") return "know";
+  return w;
+}
+function lemmaFr(word: string) {
+  let w = word.toLowerCase();
+  // normaliser apostrophe typographique
+  w = w.replace(/’/g, "'");
+  if (FR_EN[w]) return w;
+
+  // élisions
+  if (w.startsWith("l'") || w.startsWith("l’")) return w.slice(2);
+  if (w.startsWith("c'") || w.startsWith("c’")) return "c’est";
+
+  // singulier approximatif
+  if (w.endsWith("es") && FR_EN[w.slice(0, -2)]) return w.slice(0, -2);
+  if (w.endsWith("s")  && FR_EN[w.slice(0, -1)]) return w.slice(0, -1);
+  return w;
+}
+
+function topMeanings(arr?: string[] | null, n = 3): string[] | null {
+  if (!arr || arr.length === 0) return null;
+  const uniq = Array.from(new Set(arr));
+  return uniq.slice(0, n);
+}
+
+/** Traduction locale propre, SANS API.
+ * src: "en" | "fr" ; tgt: "fr" | "en"
+ */
+export async function translateWordGeneric(token: string, src: "en" | "fr", tgt: "fr" | "en"): Promise<string[] | null> {
+  if (!token) return null;
 
   if (src === "en" && tgt === "fr") {
-    const off = await translateWord(word);
-    if (off) { localStorage.setItem(key, JSON.stringify(off)); return off; }
+    const base = lemmaEn(token);
+    // cas spéciaux PRIORITAIRES
+    if (base === "you")  return ["tu", "vous"];
+    if (base === "your") return ["ton/ta/tes", "votre/vos"];
+    if (base === "it's") return ["c’est"];
+    if (base === "let's") return ["on …", "allons …", "faisons …"];
+
+    // dico direct
+    const hit = EN_FR[base];
+    if (hit) return topMeanings(hit);
+
+    // fallback léger: forme sans 's' ni -ing/-ed déjà gérés, sinon rien
+    return null;
   }
 
-  // fallback online (LibreTranslate → MyMemory)
-  try {
-    const r = await fetch("https://libretranslate.com/translate", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ q: word, source: src, target: tgt, format: "text" })
-    });
-    if (r.ok) {
-      const j = await r.json();
-      const arr = [String(j?.translatedText || "").trim()].filter(Boolean);
-      if (arr.length) { localStorage.setItem(key, JSON.stringify(arr)); return arr; }
-    }
-  } catch {}
-  try {
-    const r2 = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=${src}|${tgt}`);
-    if (r2.ok) {
-      const j2 = await r2.json();
-      const arr = [String(j2?.responseData?.translatedText || "").trim()].filter(Boolean);
-      if (arr.length) { localStorage.setItem(key, JSON.stringify(arr)); return arr; }
-    }
-  } catch {}
-  return ["(pas trouvé)"];
+  if (src === "fr" && tgt === "en") {
+    const base = lemmaFr(token);
+    const hit = FR_EN[base];
+    if (hit) return topMeanings(hit);
+    return null;
+  }
+
+  return null;
 }
+// (tout le code fallback en ligne supprimé, tout est offline)
 // Dictionnaire EN->FR chunké par 1ère lettre (public/dict/enfr-chunks/<letter>.json)
 // → essaie OFFLINE (chunks + lemmes + variantes UK/US), sinon FALLBACK en ligne
 export type DictEntry = string[];
