@@ -2,6 +2,7 @@
 
 
 import React, { useEffect, useMemo, useState } from "react";
+import ClickableSentence from "@/components/ClickableSentence";
 import { useRouter } from "next/navigation";
 import { loadProfile } from "@/lib/profile";
 import { loadLevel, recordAnswer, targetWordRange, wordCount } from "@/lib/level";
@@ -277,9 +278,15 @@ export default function Mission() {
       {/* Phrase cliquable */}
       <article className="p-4 rounded-2xl border bg-white">
         <h2 className="font-medium mb-2">📖 Traduis la phrase</h2>
-        <p className="leading-8 text-lg">
-          {phraseAffichee}
-        </p>
+        <ClickableSentence
+          text={srcText}
+          selected={selected}
+          onSelect={(tok: string) => {
+            if (!isTranslatableToken(tok)) return;
+            setSelected(tok);
+            setTranslations(null);
+          }}
+        />
       </article>
 
       {/* Panneau mot + ajout */}
