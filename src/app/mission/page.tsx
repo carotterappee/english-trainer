@@ -11,25 +11,34 @@ import { translateWord } from "@/lib/dict";
 import { addWord } from "@/lib/wordStore";
 import { normalize, softEquals } from "@/lib/textUtils";
 function applyVariant(text: string, variant: "british"|"american") {
-  const swaps: Record<string, string> =
-    variant === "british"
-      ? { apartment: "flat", fries: "chips", cookie: "biscuit", color: "colour", favorite: "favourite" }
-      : { flat: "apartment", chips: "fries", biscuit: "cookie", colour: "color", favourite: "favorite" };
   let out = text;
-  Object.entries(swaps).forEach(([from, to]) => {
-    out = out.replace(new RegExp(`\\b${from}\\b`, "gi"), to);
-  });
+
+  if (variant === "american") {
+    // 🇺🇸
+    out = out.replace(/\breturn ticket\b/gi, "round-trip ticket");
+    out = out.replace(/\bin the test\b/gi, "on the test");
+    out = out.replace(/\bcolour\b/gi, "color").replace(/\bfavourite\b/gi, "favorite");
+    out = out.replace(/\blift\b/gi, "elevator").replace(/\bflat\b/gi, "apartment")
+             .replace(/\bbiscuit\b/gi, "cookie").replace(/\bchips\b/gi, "fries");
+  } else {
+    // 🇬🇧
+    out = out.replace(/\bround-?trip ticket\b/gi, "return ticket");
+    out = out.replace(/\bon the test\b/gi, "in the test");
+    out = out.replace(/\bcolor\b/gi, "colour").replace(/\bfavorite\b/gi, "favourite");
+    out = out.replace(/\belevator\b/gi, "lift").replace(/\bapartment\b/gi, "flat")
+             .replace(/\bcookie\b/gi, "biscuit").replace(/\bfries\b/gi, "chips");
+  }
   return out;
 }
 
 // phrase simple selon l’objectif
 function getSentence(p: UserProfile) {
   switch (p.goal) {
-    case "everyday": return "I wake up early and make coffee.";
-    case "travel":   return "I would like a return ticket to London, please.";
-    case "work":     return "I have a meeting at ten o'clock.";
-    case "exams":    return "There are three questions in the test.";
-    default:         return "I wake up early and make coffee.";
+    case "everyday": return "I get up early and make some coffee.";
+    case "travel":   return "Could I get a return ticket to London, please?";
+    case "work":     return "I have a meeting at ten.";
+    case "exams":    return "There are three questions on the test.";
+    default:         return "I get up early and make some coffee.";
   }
 }
 
@@ -60,18 +69,22 @@ export default function Mission() {
   const [fr, setFr] = useState("");
   const [feedback, setFeedback] = useState<"ok"|"ko"|null>(null);
   const expectedFr = useMemo(() => {
-    switch (normalize(sentence)) {
-      case normalize("I wake up early and make coffee."):
-        return "Je me réveille tôt et je fais du café.";
-      case normalize("I would like a return ticket to London, please."):
-        return "Je voudrais un billet aller-retour pour Londres, s’il vous plaît.";
-      case normalize("I have a meeting at ten o'clock."):
-        return "J’ai une réunion à dix heures.";
-      case normalize("There are three questions in the test."):
-        return "Il y a trois questions dans le test.";
-      default:
-        return "";
+    const s = normalize(sentence);
+    if (s === normalize("I get up early and make some coffee.")) {
+      return "Je me lève tôt et je prépare du café.";
     }
+    if (s === normalize("Could I get a return ticket to London, please?") ||
+        s === normalize("Could I get a round-trip ticket to London, please?")) {
+      return "Je pourrais avoir un billet aller-retour pour Londres, s’il vous plaît ?";
+    }
+    if (s === normalize("I have a meeting at ten.")) {
+      return "J’ai une réunion à dix heures.";
+    }
+    if (s === normalize("There are three questions on the test.") ||
+        s === normalize("There are three questions in the test.")) {
+      return "Il y a trois questions dans le test.";
+    }
+    return "";
   }, [sentence]);
 
   useEffect(() => { if (!profile) router.replace("/"); }, [profile, router]);
