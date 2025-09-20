@@ -70,6 +70,7 @@ export default function Mission() {
   const [answerFr, setAnswerFr] = useState<string>("");
   const [feedback, setFeedback] = useState<"idle" | "ok" | "ko">("idle");
   const [notes, setNotes] = useState<string[]>([]);
+  const [coinPop, setCoinPop] = useState(false);
   const [correctCount, setCorrectCount] = useState<number>(0);
   const [attempts, setAttempts] = useState<number>(0);
   const [sessionCoins, setSessionCoins] = useState<number>(0);
@@ -167,22 +168,32 @@ export default function Mission() {
     const attempt = tries + 1;
     if (!normalizeAnswer(answerFr)) {
       setLast({ ok: false, expected: expText, user: answerFr });
+      setFeedback("ko");
       return;
     }
     const ok = answersEqual(answerFr, expText);
     setTries(attempt);
     if (ok) {
       addCoins(5, profile.goal);
+      setCoinPop(true);
+      setTimeout(() => setCoinPop(false), 1200);
       const s = loadSession();
       if (s) { s.coins += 5; s.attempts += 1; s.correct += 1; saveSession(s); }
       const st = recordAnswer(profile, { ok: true, tries: attempt });
       setLvl(st.level);
       setLast({ ok: true, expected: expText, user: answerFr });
-      next();
+      setFeedback("ok");
+      // Passage à la phrase suivante après un court délai pour laisser voir le feedback
+      setTimeout(() => {
+        setLast(null);
+        setFeedback("idle");
+        next();
+      }, 1200);
       return;
     } else {
       const notes = isEn ? frenchHints(expText, answerFr) : [];
       setLast({ ok: false, expected: expText, user: answerFr, notes });
+      setFeedback("ko");
       const s = loadSession();
       if (s) { s.attempts += 1; saveSession(s); }
       const st = recordAnswer(profile, { ok: false, tries: attempt });
@@ -306,13 +317,17 @@ export default function Mission() {
       )}
 
       {/* Réponse FR */}
-      <div className="p-4 rounded-2xl border bg-white space-y-3">
+      <div className="p-4 rounded-2xl border bg-white space-y-3 relative">
         <p className="font-medium">
           📝 Traduis en {isEn ? "français" : (profile.answerLang === "ru" ? "russe" : "français")}
         </p>
         <textarea
           value={answerFr}
-          onChange={(e) => { setAnswerFr(e.target.value); setLast(null); }}
+          onChange={e => {
+            setAnswerFr(e.target.value);
+            setLast(null);
+            setFeedback("idle");
+          }}
           onKeyDown={e => {
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); check(); }
           }}
@@ -320,17 +335,19 @@ export default function Mission() {
           placeholder={isEn ? "Écris la traduction en français… (Entrée = vérifier)" : "Écris la traduction en russe… (Entrée = vérifier)"}
           className="w-full rounded-xl border p-3 min-h-[100px]"
         />
+        {/* Animation pop de pièces */}
+        {coinPop && (
+          <div className="absolute right-6 top-2 animate-bounce z-10 flex items-center gap-1">
+            <Coin size={28} />
+            <span className="text-pink-600 font-bold text-lg">+5</span>
+          </div>
+        )}
         <div className="flex flex-wrap gap-3">
           <button onClick={check} className="px-4 py-2 rounded-2xl bg-indigo-600 text-white hover:bg-indigo-700">
             Vérifier
           </button>
           {feedback === "ok" && (
-            <>
-              <span className="self-center text-green-700">✅ Correct !</span>
-              <button onClick={next} className="px-4 py-2 rounded-2xl border hover:bg-indigo-50">
-                Phrase suivante →
-              </button>
-            </>
+            <span className="self-center text-green-700 animate-pulse">✅ Correct !</span>
           )}
           {feedback === "ko" && current && (
             <span className="self-center text-rose-700">
@@ -342,8 +359,8 @@ export default function Mission() {
               expected={last.expected}
               user={last.user}
               notes={last.notes || []}
-              onRetry={() => { setLast(null); }}
-              onNext={() => { setLast(null); next(); }}
+              onRetry={() => { setLast(null); setFeedback("idle"); }}
+              onNext={() => { setLast(null); setFeedback("idle"); next(); }}
             />
           )}
           {notes.length > 0 && (
