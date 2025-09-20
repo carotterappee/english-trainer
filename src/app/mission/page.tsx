@@ -1,107 +1,97 @@
-"use client";
-type SessionWindow = Window & {
-  __sessionScore?: number;
-  __sessionMinutes?: number;
-};
 
+"use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loadProfile, VARIANT_FLAG, GOAL_LABEL, type UserProfile } from "@/lib/profile";
+import { getSentences, type SentenceItem } from "@/content/sentences";
 import { translateWord } from "@/lib/dict";
 import { addWord } from "@/lib/wordStore";
 import { normalize, softEquals } from "@/lib/textUtils";
-function applyVariant(text: string, variant: "british"|"american") {
-  let out = text;
+import { addCoins } from "@/lib/coins";
+import Timer from "@/components/Timer";
 
-  if (variant === "american") {
-    // 🇺🇸
-    out = out.replace(/\breturn ticket\b/gi, "round-trip ticket");
-    out = out.replace(/\bin the test\b/gi, "on the test");
-    out = out.replace(/\bcolour\b/gi, "color").replace(/\bfavourite\b/gi, "favorite");
-    out = out.replace(/\blift\b/gi, "elevator").replace(/\bflat\b/gi, "apartment")
-             .replace(/\bbiscuit\b/gi, "cookie").replace(/\bchips\b/gi, "fries");
-  } else {
-    // 🇬🇧
-    out = out.replace(/\bround-?trip ticket\b/gi, "return ticket");
-    out = out.replace(/\bon the test\b/gi, "in the test");
-    out = out.replace(/\bcolor\b/gi, "colour").replace(/\bfavorite\b/gi, "favourite");
-    out = out.replace(/\belevator\b/gi, "lift").replace(/\bapartment\b/gi, "flat")
-             .replace(/\bcookie\b/gi, "biscuit").replace(/\bfries\b/gi, "chips");
-  }
-  return out;
-}
-
-// phrase simple selon l’objectif
-function getSentence(p: UserProfile) {
-  switch (p.goal) {
-    case "everyday": return "I get up early and make some coffee.";
-    case "travel":   return "Could I get a return ticket to London, please?";
-    case "work":     return "I have a meeting at ten.";
-    case "exams":    return "There are three questions on the test.";
-    default:         return "I get up early and make some coffee.";
-  }
-}
-
-// tokenisation simple mots/punctuations
-function tokenize(sentence: string) {
-  const tokens: { t: string; isWord: boolean }[] = [];
+// --- utils ---
+type Token = { t: string; isWord: boolean };
+function tokenize(sentence: string): Token[] {
+  const tokens: Token[] = [];
   const re = /[A-Za-z']+|[^A-Za-z'\s]+|\s+/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(sentence))) {
     const t = m[0];
-    const isWord = /^[A-Za-z']+$/.test(t);
-    tokens.push({ t, isWord });
+    tokens.push({ t, isWord: /^[A-Za-z']+$/.test(t) });
   }
   return tokens;
 }
+function applyVariant(text: string, variant: "british" | "american") {
+  let out = text;
+  if (variant === "american") {
+    out = out.replace(/\breturn ticket\b/gi, "round-trip ticket");
+    out = out.replace(/\bin the test\b/gi, "on the test");
+  } else {
+    out = out.replace(/\bround-?trip ticket\b/gi, "return ticket");
+    out = out.replace(/\bon the test\b/gi, "in the test");
+  }
+  return out;
+}
+type SessionWindow = Window & { __sessionScore?: number; __sessionMinutes?: number };
 
+const COINS_PER_CORRECT = 3;
+const SESSION_SECONDS = 15 * 60;
 
 export default function Mission() {
-  "use client";
+
   const router = useRouter();
   const profile = loadProfile();
 
-  // Hooks toujours appelés, valeurs nulles si pas de profil
-  const base = profile ? getSentence(profile) : "";
-  const sentence = profile ? applyVariant(base, profile.variant) : "";
-  const tokens = useMemo(() => tokenize(sentence), [sentence]);
+  // hooks toujours appelés, valeurs nulles si pas de profil
+  const bankBase = useMemo(() => getSentences(profile?.goal ?? "everyday"), [profile?.goal]);
+  const bank: SentenceItem[] = useMemo(
+    () => bankBase.map(s => ({ en: applyVariant(s.en, profile?.variant ?? "british"), fr: s.fr })),
+    [bankBase, profile?.variant]
+  );
+  const [idx, setIdx] = useState<number>(0);
   const [selected, setSelected] = useState<string | null>(null);
-  const [fr, setFr] = useState("");
-  const [feedback, setFeedback] = useState<"ok"|"ko"|null>(null);
-  const expectedFr = useMemo(() => {
-    const s = normalize(sentence);
-    if (s === normalize("I get up early and make some coffee.")) {
-      return "Je me lève tôt et je prépare du café.";
-    }
-    if (s === normalize("Could I get a return ticket to London, please?") ||
-        s === normalize("Could I get a round-trip ticket to London, please?")) {
-      return "Je pourrais avoir un billet aller-retour pour Londres, s’il vous plaît ?";
-    }
-    if (s === normalize("I have a meeting at ten.")) {
-      return "J’ai une réunion à dix heures.";
-    }
-    if (s === normalize("There are three questions on the test.") ||
-        s === normalize("There are three questions in the test.")) {
-      return "Il y a trois questions dans le test.";
-    }
-    return "";
-  }, [sentence]);
+  const [answerFr, setAnswerFr] = useState<string>("");
+  const [feedback, setFeedback] = useState<"idle" | "ok" | "ko">("idle");
+  const [correctCount, setCorrectCount] = useState<number>(0);
+  const [attempts, setAttempts] = useState<number>(0);
+  const [sessionCoins, setSessionCoins] = useState<number>(0);
+  const [ended, setEnded] = useState<boolean>(false);
+  const current = bank[idx];
+  const tokens = useMemo(() => tokenize(current.en), [current.en]);
+  const scorePct = attempts ? Math.round((correctCount / attempts) * 100) : 0;
 
   useEffect(() => { if (!profile) router.replace("/"); }, [profile, router]);
   useEffect(() => {
     if (typeof window !== "undefined") {
       const w = window as SessionWindow;
-      w.__sessionScore = feedback === "ok" ? 100 : 0;
-      w.__sessionMinutes = 5;
+      w.__sessionScore = scorePct;
+      w.__sessionMinutes = Math.round((SESSION_SECONDS - 0) / 60); // simple placeholder
     }
-  }, [feedback]);
+  }, [scorePct]);
 
   if (!profile) return null;
 
-  const check = () => {
-    if (!expectedFr) return setFeedback("ko");
-    setFeedback(softEquals(fr, expectedFr) ? "ok" : "ko");
-  };
+  function check() {
+    setAttempts(a => a + 1);
+    if (softEquals(answerFr, current.fr)) {
+      setFeedback("ok");
+      setCorrectCount(c => c + 1);
+      setSessionCoins(c => c + COINS_PER_CORRECT);
+    } else {
+      setFeedback("ko");
+    }
+  }
+  function next() {
+    setSelected(null);
+    setAnswerFr("");
+    setFeedback("idle");
+    setIdx(i => (i + 1) % bank.length);
+  }
+  function finishSession() {
+  setEnded(true);
+  addCoins(sessionCoins, profile!.goal);
+  }
 
   return (
     <main className="min-h-screen p-8 max-w-3xl mx-auto space-y-6">
@@ -112,9 +102,26 @@ export default function Mission() {
         </span>
       </div>
 
-      {/* Phrase avec mots cliquables */}
+      {/* En-tête : timer + pièces */}
+      <div className="p-4 rounded-2xl border flex items-center gap-4 bg-white">
+        <Timer durationSec={SESSION_SECONDS} onElapsed={finishSession} />
+        <div className="ml-auto flex items-center gap-2">
+          <span
+            className="inline-block rounded-full"
+            style={{
+              width: 22, height: 22,
+              background: "radial-gradient(circle at 30% 30%, #ffd7f2, #ff63c3 60%, #b11c8c)",
+              boxShadow: "0 4px 10px rgba(255, 99, 195, .35), inset 0 2px 5px rgba(255,255,255,.6)",
+            }}
+            aria-hidden
+          />
+          <span className="font-medium">{sessionCoins}</span>
+        </div>
+      </div>
+
+      {/* Phrase cliquable */}
       <article className="p-4 rounded-2xl border bg-white">
-        <h2 className="font-medium mb-2">📖 Phrase du jour</h2>
+        <h2 className="font-medium mb-2">📖 Traduis la phrase</h2>
         <p className="leading-8 text-lg">
           {tokens.map((tok, i) =>
             tok.isWord ? (
@@ -133,7 +140,7 @@ export default function Mission() {
         </p>
       </article>
 
-      {/* Panneau traduction mot + ajout à la liste */}
+      {/* Panneau mot + ajout */}
       {selected && (
         <div className="p-4 rounded-2xl border bg-white flex items-center justify-between gap-4">
           <div>
@@ -150,27 +157,62 @@ export default function Mission() {
         </div>
       )}
 
-      {/* Zone de traduction FR */}
+      {/* Réponse FR */}
       <div className="p-4 rounded-2xl border bg-white space-y-3">
-        <p className="font-medium">📝 Traduis en français</p>
         <textarea
-          value={fr}
-          onChange={(e) => { setFr(e.target.value); setFeedback(null); }}
-          placeholder="Écris ta traduction ici…"
+          value={answerFr}
+          onChange={(e) => { setAnswerFr(e.target.value); setFeedback("idle"); }}
+          placeholder="Écris la traduction en français…"
           className="w-full rounded-xl border p-3 min-h-[100px]"
         />
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button onClick={check} className="px-4 py-2 rounded-2xl bg-indigo-600 text-white hover:bg-indigo-700">
             Vérifier
           </button>
-          {feedback === "ok" && <span className="text-green-700">✅ Correct !</span>}
+          {feedback === "ok" && (
+            <>
+              <span className="self-center text-green-700">✅ Correct !</span>
+              <button onClick={next} className="px-4 py-2 rounded-2xl border hover:bg-indigo-50">
+                Phrase suivante →
+              </button>
+            </>
+          )}
           {feedback === "ko" && (
-            <span className="text-rose-700">
-              ❌ Presque. Attendu : <em className="underline">{expectedFr}</em>
+            <span className="self-center text-rose-700">
+              ❌ Presque. Attendu : <em className="underline">{current.fr}</em>
             </span>
           )}
         </div>
       </div>
+
+      {/* Résumé de fin */}
+      {ended && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 space-y-5">
+            <h2 className="text-xl font-semibold">Session terminée 🎉</h2>
+            <p>Score : <b>{scorePct}</b>/100</p>
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-block rounded-full"
+                style={{
+                  width: 24, height: 24,
+                  background: "radial-gradient(circle at 30% 30%, #ffd7f2, #ff63c3 60%, #b11c8c)",
+                  boxShadow: "0 4px 10px rgba(255, 99, 195, .35), inset 0 2px 5px rgba(255,255,255,.6)",
+                }}
+              />
+              <span>Tu as gagné <b>{sessionCoins}</b> pièces roses !</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => router.push("/chest")} className="rounded-2xl bg-indigo-600 text-white py-2">
+                Ouvrir le coffre 🧰
+              </button>
+              <button onClick={() => location.reload()} className="rounded-2xl border py-2">
+                Rejouer 15 min
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
