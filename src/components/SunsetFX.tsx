@@ -1,41 +1,263 @@
 "use client";
 import { useEffect, useState } from "react";
 
+/**
+ * SunsetFX – overlay SVG full-screen (qualité)
+ * - Soleil descend (boucle douce) + glow + reflet sur l’eau
+ * - Océan en 3 couches de vagues (parallax), plus mousse au rivage
+ * - Deux vols d’oiseaux avec léger flap
+ * - pointer-events: none => ne bloque aucun clic
+ */
 export default function SunsetFX() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    const update = () => setShow(document.documentElement.getAttribute("data-theme") === "sunset");
+    const update = () =>
+      setShow(document.documentElement.getAttribute("data-theme") === "sunset");
     update();
     const obs = new MutationObserver(update);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
     return () => obs.disconnect();
   }, []);
 
   if (!show) return null;
 
   return (
-    <div className="sunsetfx pointer-events-none" aria-hidden>
-      <div className="sun" />
-      <div className="ocean">
-        <div className="wave w1" />
-        <div className="wave w2" />
-        <div className="wave w3" />
-        <div className="foam" />
-      </div>
-      <div className="shore" />
-      <svg className="birds b1" viewBox="0 0 100 20" preserveAspectRatio="xMidYMid meet">
-        <g className="flock">
-          <path d="M5 10 q6 -6 12 0 M17 10 q6 -6 12 0 M29 10 q6 -6 12 0"
-                fill="none" stroke="#3a2d55" strokeWidth="1.6" strokeLinecap="round"/>
+    <div className="sunset-wrap" aria-hidden>
+      <svg className="sunset-svg" viewBox="0 0 1000 1000" preserveAspectRatio="none">
+        <defs>
+          {/* Ciel dégradé */}
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ff9a9e" />
+            <stop offset="45%" stopColor="#fecfef" />
+            <stop offset="100%" stopColor="#f6d365" />
+          </linearGradient>
+
+          {/* Glow du soleil */}
+          <radialGradient id="sunGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#fff8d6" />
+            <stop offset="45%" stopColor="#ffd27e" />
+            <stop offset="80%" stopColor="#ffae6f" />
+            <stop offset="100%" stopColor="#ff8aa3" />
+          </radialGradient>
+
+          {/* Reflet vertical sous le soleil (masqué par vagues) */}
+          <linearGradient id="reflectGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgba(255,214,160,0.75)" />
+            <stop offset="50%" stopColor="rgba(255,180,140,0.45)" />
+            <stop offset="100%" stopColor="rgba(255,160,160,0.15)" />
+          </linearGradient>
+
+          {/* Chemin d’une vague (une période) */}
+          <path
+            id="wavePath"
+            d="M 0 0 
+               C 50 -18, 100 18, 150 0
+               S 250 -18, 300 0
+               S 400 18, 450 0
+               S 550 -18, 600 0"
+          />
+
+          {/* Oiseau (deux arcs) */}
+          <g id="bird">
+            <path d="M0 0 q 10 -8 20 0" fill="none" stroke="#3a2d55" strokeWidth="3" strokeLinecap="round" />
+            <path d="M20 0 q 10 -8 20 0" fill="none" stroke="#3a2d55" strokeWidth="3" strokeLinecap="round" />
+          </g>
+        </defs>
+
+        {/* Ciel */}
+        <rect x="0" y="0" width="1000" height="1000" fill="url(#sky)" />
+
+        {/* Soleil + glow + REFLET */}
+        <g className="sun-group">
+          <circle className="sun" cx="500" cy="300" r="110" fill="url(#sunGrad)" />
+          {/* halo */}
+          <circle cx="500" cy="300" r="170" fill="#ffdca6" opacity="0.25" />
+          {/* reflet (colonne) */}
+          <g className="reflection" transform="translate(0,520)">
+            <rect x="460" y="0" width="80" height="320" fill="url(#reflectGrad)" opacity="0.6" />
+            {/* scintillement du reflet */}
+            <rect className="reflect-ripples" x="430" y="0" width="140" height="320" fill="url(#reflectGrad)" opacity="0.35" />
+          </g>
+        </g>
+
+        {/* Océan (fond) */}
+        <rect x="0" y="520" width="1000" height="480" fill="url(#oceanFill)" />
+        <defs>
+          <linearGradient id="oceanFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#fbc2c4" stopOpacity="0.28" />
+            <stop offset="40%" stopColor="#8bb0ff" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#2a4aa3" stopOpacity="0.45" />
+          </linearGradient>
+        </defs>
+
+        {/* Vagues lointaines */}
+        <g className="waves far" transform="translate(0,560)">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <use key={i} href="#wavePath" x={i * 180 - 100} y={0} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3" />
+          ))}
+        </g>
+
+        {/* Vagues médianes */}
+        <g className="waves mid" transform="translate(0,620)">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <use key={i} href="#wavePath" x={i * 180 - 120} y={0} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="3.5" />
+          ))}
+        </g>
+
+        {/* Vagues proches */}
+        <g className="waves near" transform="translate(0,690)">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <use key={i} href="#wavePath" x={i * 180 - 140} y={0} fill="none" stroke="rgba(255,255,255,0.26)" strokeWidth="4" />
+          ))}
+        </g>
+
+        {/* Mousse au rivage */}
+        <g className="foam" transform="translate(0,820)">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <use key={i} href="#wavePath" x={i * 180 - 160} y={0} fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" />
+          ))}
+        </g>
+
+        {/* Sable */}
+        <rect x="0" y="900" width="1000" height="100" fill="url(#sand)" />
+        <defs>
+          <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#f4e3b6" />
+            <stop offset="100%" stopColor="#e4cf96" />
+          </linearGradient>
+        </defs>
+
+        {/* Oiseaux (deux vols) */}
+        <g className="flock f1" transform="translate(-150,190) scale(1.1)">
+          <use href="#bird" />
+          <use href="#bird" x="40" y="10" />
+          <use href="#bird" x="85" y="-2" />
+        </g>
+        <g className="flock f2" transform="translate(-150,240) scale(0.9)">
+          <use href="#bird" />
+          <use href="#bird" x="36" y="8" />
+          <use href="#bird" x="75" y="-3" />
+          <use href="#bird" x="115" y="6" />
         </g>
       </svg>
-      <svg className="birds b2" viewBox="0 0 100 20" preserveAspectRatio="xMidYMid meet">
-        <g className="flock">
-          <path d="M5 12 q5 -5 10 0 M15 12 q5 -5 10 0 M25 12 q5 -5 10 0"
-                fill="none" stroke="#3a2d55" strokeWidth="1.4" strokeLinecap="round"/>
-        </g>
-      </svg>
+
+      <style jsx>{`
+        .sunset-wrap {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 0;
+        }
+        .sunset-svg {
+          width: 100%;
+          height: 100%;
+          display: block;
+        }
+
+        /* Soleil qui descend (reboucle très lentement) + halo qui respire */
+        .sun-group .sun {
+          animation: sunDrop 60s linear infinite;
+        }
+        .sun-group circle:nth-child(2) {
+          animation: sunGlow 6s ease-in-out infinite;
+          transform-origin: 500px 300px;
+        }
+        @keyframes sunDrop {
+          0%   { transform: translateY(-10px); }
+          45%  { transform: translateY(140px); } /* proche de l’horizon */
+          55%  { transform: translateY(150px); } /* très léger “aplatissement” */
+          100% { transform: translateY(-10px); } /* boucle douce */
+        }
+        @keyframes sunGlow {
+          0%,100% { opacity: 0.22; transform: scale(1.00); }
+          50%     { opacity: 0.30; transform: scale(1.04); }
+        }
+
+        /* Reflet qui ondule légèrement (shimmer) */
+        .reflection {
+          mix-blend-mode: screen;
+        }
+        .reflect-ripples {
+          mask-image: repeating-linear-gradient(
+            to bottom,
+            rgba(0,0,0,0.0) 0px,
+            rgba(0,0,0,0.0) 6px,
+            rgba(0,0,0,1.0) 6px,
+            rgba(0,0,0,1.0) 12px
+          );
+          animation: shimmer 4.8s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+          0%,100% { transform: translateX(-10px) skewY(0deg); opacity: 0.35; }
+          50%     { transform: translateX(10px)  skewY(1deg); opacity: 0.55; }
+        }
+
+        /* Parallax des vagues + micro oscillation verticale */
+        .waves.far  { animation: waveXFar  26s linear infinite,  waveY 5s ease-in-out infinite;  opacity: 0.85; }
+        .waves.mid  { animation: waveXMid  18s linear infinite,  waveY 4.2s ease-in-out infinite; }
+        .waves.near { animation: waveXNear 12s linear infinite,  waveY 3.6s ease-in-out infinite; }
+
+        @keyframes waveXFar  { from { transform: translateX(0)    translateY(560px); } to { transform: translateX(-360px) translateY(560px); } }
+        @keyframes waveXMid  { from { transform: translateX(0)    translateY(620px); } to { transform: translateX(-300px) translateY(620px); } }
+        @keyframes waveXNear { from { transform: translateX(0)    translateY(690px); } to { transform: translateX(-240px) translateY(690px); } }
+        @keyframes waveY     { 0%,100% { transform-origin: 0 0; } 50% { transform: translateY(-2px); } }
+
+        /* Mousse au rivage : léger drift + blur subtil pour adoucir */
+        .foam {
+          filter: drop-shadow(0 2px 3px rgba(255,255,255,0.35));
+          animation: foamDrift 14s linear infinite;
+          opacity: 0.95;
+        }
+        @keyframes foamDrift { from { transform: translateX(0) translateY(820px); } to { transform: translateX(-260px) translateY(820px); } }
+
+        /* Oiseaux – traversent l’écran, petit flap par scaleY */
+        .flock { opacity: 0; }
+        .flock.f1 { animation: fly1 28s linear 2s infinite; }
+        .flock.f2 { animation: fly2 32s linear 10s infinite; }
+
+        .flock use {
+          transform-origin: center;
+          animation: flap 0.9s ease-in-out infinite;
+        }
+        .flock use:nth-child(2) { animation-delay: 0.1s; }
+        .flock use:nth-child(3) { animation-delay: 0.2s; }
+        .flock use:nth-child(4) { animation-delay: 0.3s; }
+
+        @keyframes flap {
+          0%,100% { transform: scaleY(1.00); }
+          50%     { transform: scaleY(0.78); }
+        }
+
+        @keyframes fly1 {
+          0%   { transform: translate(-150px, 190px); opacity: 0; }
+          6%   { opacity: 0.95; }
+          50%  { transform: translate(1150px, 160px); opacity: 0.95; }
+          94%  { opacity: 0.95; }
+          100% { transform: translate(1300px, 150px); opacity: 0; }
+        }
+        @keyframes fly2 {
+          0%   { transform: translate(-150px, 240px) scale(0.9); opacity: 0; }
+          8%   { opacity: 0.9; }
+          50%  { transform: translate(1150px, 280px) scale(0.9); opacity: 0.9; }
+          96%  { opacity: 0.9; }
+          100% { transform: translate(1300px, 300px) scale(0.9); opacity: 0; }
+        }
+
+        /* Accessibilité */
+        @media (prefers-reduced-motion: reduce) {
+          .sun-group .sun,
+          .sun-group circle:nth-child(2),
+          .reflect-ripples,
+          .waves.far, .waves.mid, .waves.near,
+          .foam,
+          .flock { animation: none !important; }
+          .flock { opacity: 0.85; transform: translate(500px,220px) scale(0.9); }
+        }
+      `}</style>
     </div>
   );
 }
