@@ -1,3 +1,105 @@
+
+/* ===== SUNSET FX (qualité) ===== */
+:root[data-theme="sunset"] .sunsetfx{ position:absolute; inset:0; z-index:0; }
+
+:root[data-theme="sunset"] .sun{
+  position:absolute; left:50%; bottom:40vh; transform:translateX(-50%);
+  width:180px; height:180px; border-radius:50%;
+  background:
+    radial-gradient(60% 60% at 50% 50%, #fff8, transparent 65%),
+    radial-gradient(circle at 50% 50%, #ffd27e, #ffb26b 45%, #ff8aa3 70%, #ff7b7b 90%);
+  filter: blur(0.2px);
+  box-shadow:
+    0 0 80px 20px rgba(255,175,125,.45),
+    0 0 140px 40px rgba(255,140,140,.35);
+}
+
+/* Océan (fond) */
+:root[data-theme="sunset"] .ocean{
+  position:absolute; inset:auto 0 0 0; height:48vh;
+  background:
+    linear-gradient(180deg, rgba(255,194,170,.25), rgba(255,129,143,.18) 20%, rgba(110,140,220,.20) 60%, rgba(40,70,150,.35)),
+    linear-gradient(180deg, rgba(255,255,255,.12), transparent 25%);
+  overflow:hidden;
+}
+
+/* Vagues: trois couches, en SVG data-uri, répétées en X et animées */
+@keyframes waveMoveFar   { from{ background-position-x: 0   } to{ background-position-x: -900px } }
+@keyframes waveMoveMid   { from{ background-position-x: 0   } to{ background-position-x: -700px } }
+@keyframes waveMoveNear  { from{ background-position-x: 0   } to{ background-position-x: -500px } }
+
+:root[data-theme="sunset"] .wave{
+  position:absolute; left:0; right:0;
+  background-repeat: repeat-x; background-size: 300px 100%;
+  opacity:.9;
+}
+
+/* vague lointaine (douce) */
+:root[data-theme="sunset"] .wave.w1{
+  bottom:22vh; height:14vh;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3Cpath fill='rgba(255,255,255,0.08)' d='M0 20 Q 12.5 16 25 20 T 50 20 T 75 20 T 100 20 V40 H0 Z'/%3E%3C/svg%3E");
+  animation: waveMoveFar 22s linear infinite;
+}
+
+/* vague médiane (plus visible) */
+:root[data-theme="sunset"] .wave.w2{
+  bottom:14vh; height:16vh;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3Cpath fill='rgba(255,255,255,0.14)' d='M0 22 Q 12.5 17 25 22 T 50 22 T 75 22 T 100 22 V40 H0 Z'/%3E%3C/svg%3E");
+  animation: waveMoveMid 16s linear infinite;
+}
+
+/* vague proche (épaisse) */
+:root[data-theme="sunset"] .wave.w3{
+  bottom:8vh; height:18vh;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3Cpath fill='rgba(255,255,255,0.2)' d='M0 24 Q 12.5 18 25 24 T 50 24 T 75 24 T 100 24 V40 H0 Z'/%3E%3C/svg%3E");
+  animation: waveMoveNear 12s linear infinite;
+}
+
+/* Mousse blanche au rivage (fin trait + brume) */
+@keyframes foamDrift { from{ background-position-x: 0 } to{ background-position-x: -550px } }
+:root[data-theme="sunset"] .foam{
+  position:absolute; left:0; right:0; bottom:6vh; height:6vh;
+  filter: drop-shadow(0 2px 4px rgba(255,255,255,.35));
+  background:
+    /* ligne de mousse */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 12'%3E%3Cpath d='M0 6 Q 12.5 3 25 6 T 50 6 T 75 6 T 100 6' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x 0 2px/220px 9px,
+    /* embruns / bulles */
+    radial-gradient(6px 6px at 10% 60%, rgba(255,255,255,.55), transparent 60%),
+    radial-gradient(5px 5px at 30% 40%, rgba(255,255,255,.35), transparent 60%),
+    radial-gradient(7px 7px at 55% 55%, rgba(255,255,255,.45), transparent 60%),
+    radial-gradient(4px 4px at 78% 50%, rgba(255,255,255,.35), transparent 60%);
+  animation: foamDrift 14s linear infinite;
+}
+
+/* Sable doux */
+:root[data-theme="sunset"] .shore{
+  position:absolute; inset:auto 0 0 0; height:8vh;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.0), rgba(255,255,255,.25) 40%, transparent 80%),
+    linear-gradient(180deg, #f4e3b6, #e9d49b);
+  box-shadow: inset 0 8px 18px -12px rgba(0,0,0,.3);
+}
+
+/* Oiseaux (2 vols, tailles/vitesses diff.) */
+@keyframes birdsFly {
+  from { transform: translateX(-12vw); opacity:.0 }
+  8%   { opacity: .9 }
+  92%  { opacity: .9 }
+  to   { transform: translateX(112vw); opacity:0 }
+}
+:root[data-theme="sunset"] .birds{
+  position:absolute; top:18vh; left:-12vw; width:22vw; height:8vh;
+  opacity:0;
+}
+:root[data-theme="sunset"] .birds.b1{ top:22vh; animation: birdsFly 24s linear 3s infinite; }
+:root[data-theme="sunset"] .birds.b2{ top:28vh; transform: scale(.85); animation: birdsFly 28s linear 12s infinite; }
+
+/* Accessibilité */
+@media (prefers-reduced-motion: reduce){
+  :root[data-theme="sunset"] .wave,
+  :root[data-theme="sunset"] .foam,
+  :root[data-theme="sunset"] .birds { animation:none }
+}
 /* ===== Night Sky FX ===== */
 :root[data-theme="night"] .nightfx{position:absolute; inset:0; z-index:0;}
 
