@@ -1,4 +1,8 @@
+
 // Outils de texte : comparaison tolérante & filtrage pour la traduction
+
+/** Types d’erreurs de nearMatch */
+export type Issue = "accent" | "missing_final_s" | "minor_typo";
 
 /** Normalise une réponse pour comparaison : 
  * - minuscules, accents retirés
@@ -24,6 +28,44 @@ export function isTranslatableToken(tok: string) {
 /** Pour l’affichage, on remplace les vrais cadratins par une virgule douce */
 export function displayFriendly(s: string) {
   return (s || "").replace(/[—–]/g, ", ");
+}
+
+
+// Normalisation pour le français (minuscules, accents retirés, espaces propres)
+function normalizeFr(s: string): string {
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}+/gu, "")
+    .replace(/[-.,;:!?]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function stripAccents(s: string): string {
+  return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+// Distance de Levenshtein simple
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  return dp[m][n];
+}
+
+function splitWordsFr(s: string): string[] {
+  return (s || "").toLowerCase().split(/[^\p{Letter}’']+/u).filter(Boolean);
 }
 
 export function nearMatch(exp: string, got: string): { ok: boolean; issue?: Issue } {
