@@ -19,6 +19,9 @@ export default function Home() {
   return (
     <main className="relative min-h-screen flex items-center justify-center p-6">
       <CloudBackground />
+      {/* Night stars / Sunset waves overlays */}
+      <div className="stars" />
+      <div className="waves" />
       <div className="relative z-10 w-full max-w-md bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-8 space-y-6">
         <h1 className="text-3xl font-bold text-center text-indigo-700">🌍 English Trainer</h1>
         <p className="text-center text-gray-600">Ta mission du jour en anglais — 15 minutes chrono.</p>
@@ -32,10 +35,11 @@ export default function Home() {
 
 
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           <Link href="/progress"   className="text-center rounded-2xl border py-2 hover:bg-indigo-50 transition">📈 Progression</Link>
           <Link href="/flashcards" className="text-center rounded-2xl border py-2 hover:bg-indigo-50 transition">🧠 Flashcards</Link>
           <Link href="/chest"      className="text-center rounded-2xl border py-2 hover:bg-indigo-50 transition">🧰 Coffre</Link>
+          <Link href="/shop"       className="text-center rounded-2xl border py-2 hover:bg-indigo-50 transition">🎨 Thèmes</Link>
         </div>
 
         <p className="text-center text-sm text-gray-400">Progression sauvegardée automatiquement</p>

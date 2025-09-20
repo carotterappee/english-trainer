@@ -1,3 +1,10 @@
+export function spendCoins(coins: number) {
+  const w = loadWallet();
+  if (w.balance < coins) return { ok: false as const, balance: w.balance };
+  w.balance -= coins;
+  saveWallet(w);
+  return { ok: true as const, balance: w.balance };
+}
 import type { Goal } from "@/lib/profile";
 
 export type WalletEntry = { id: string; date: string; coins: number; goal: Goal };

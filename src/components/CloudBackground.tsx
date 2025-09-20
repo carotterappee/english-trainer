@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+import React, { useEffect, useState } from "react";
+import { getSelected } from "@/lib/themeStore";
 
 // Types pour les variables CSS custom
 export type CSSVars = React.CSSProperties & {
@@ -25,6 +27,9 @@ function Cloud({ style }: { style?: CSSVars }) {
 }
 
 export default function CloudBackground() {
+  const [ok, setOk] = useState(false);
+  useEffect(() => { setOk(getSelected() === "clouds"); }, []);
+  if (!ok) return null;
   return (
     <div className="clouds pointer-events-none" aria-hidden>
       {/* ciel dégradé */}
