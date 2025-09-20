@@ -1,110 +1,117 @@
 "use client";
-import { useState } from "react";
-import { saveProfile, EnglishVariant, Goal } from "@/lib/profile";
+import { useEffect, useState } from "react";
+import PrettySelect from "@/components/PrettySelect";
+import { saveProfile, loadProfile, hasProfile,
+         type EnglishVariant, type Goal } from "@/lib/profile";
 
 export default function SelectProfileModal({
-  open,
-  onClose,
-  onDone,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onDone: () => void; // appelé après avoir créé le profil
-}) {
-  const [course, setCourse] = useState<"en"|"fr">("en");
-  const [answerLang, setAnswerLang] = useState<"fr"|"ru">("fr");
-  const [variant, setVariant] = useState<EnglishVariant>("british");
-  const [goal, setGoal] = useState<Goal>("everyday");
+  open, onClose, onDone,
+}: { open: boolean; onClose: () => void; onDone: () => void }) {
+  // valeurs par défaut (si profil existe déjà)
+  const existing = (typeof window !== "undefined" ? loadProfile() : null);
+  const [course, setCourse] = useState<"en"|"fr">(existing?.course ?? "en");
+  const [answerLang, setAnswerLang] = useState<"fr"|"ru">(existing?.answerLang ?? "fr");
+  const [variant, setVariant] = useState<EnglishVariant>(existing?.variant ?? "british");
+  const [goal, setGoal] = useState<Goal>(existing?.goal ?? "everyday");
+
+  useEffect(() => {
+    // si on change de cours vers FR, forcer answerLang visible
+    if (course === "fr" && !["fr","ru"].includes(answerLang)) setAnswerLang("ru");
+  }, [course, answerLang]);
 
   if (!open) return null;
 
+  const save = () => {
+    const base = existing ?? {
+      deviceId: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    };
+    saveProfile({
+      ...base,
+      course,
+      answerLang,
+      variant,
+      goal,
+    });
+    onClose();
+    onDone();
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-6">
-
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 space-y-5">
-        <h2 className="text-xl font-semibold text-indigo-700">Choisis ton cours</h2>
-
-        <div className="space-y-2">
-          <p className="font-medium">Tu veux apprendre…</p>
-          <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => setCourse("en")} className={`rounded-xl border py-2 ${course==="en"?"border-indigo-600 bg-indigo-50":""}`}>🇬🇧 Anglais</button>
-            <button onClick={() => setCourse("fr")} className={`rounded-xl border py-2 ${course==="fr"?"border-indigo-600 bg-indigo-50":""}`}>🇫🇷 Français</button>
-          </div>
+    <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="w-full max-w-lg rounded-3xl border bg-white shadow-2xl p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-semibold">Bienvenue !</h2>
         </div>
 
-        {course === "en" && (
-          <>
-            <div className="space-y-2">
-              <p className="text-sm text-gray-600">Variante :</p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setVariant("british")}
-                  className={`px-4 py-3 rounded-2xl border ${variant==="british" ? "border-indigo-600 bg-indigo-50" : "hover:bg-gray-50"}`}
-                >🇬🇧 Britannique</button>
-                <button
-                  onClick={() => setVariant("american")}
-                  className={`px-4 py-3 rounded-2xl border ${variant==="american" ? "border-indigo-600 bg-indigo-50" : "hover:bg-gray-50"}`}
-                >🇺🇸 Américain</button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm text-gray-600">Pour quoi faire :</p>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  ["everyday","Vie quotidienne"],
-                  ["travel","Voyage"],
-                  ["work","Travail / réunions"],
-                  ["exams","Examens (A2/B1)"],
-                ].map(([val,label])=>(
-                  <button key={val}
-                    onClick={()=>setGoal(val as Goal)}
-                    className={`px-4 py-3 rounded-2xl border ${goal===val ? "border-indigo-600 bg-indigo-50" : "hover:bg-gray-50"}`}
-                  >{label}</button>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
+        <p className="text-sm text-gray-600">
+          Dis-moi <b>ta langue de réponse</b> et ce que tu veux <b>apprendre</b>.
+        </p>
 
-        {course === "fr" && (
-          <div className="space-y-2">
-            <p className="font-medium">Tu répondras dans :</p>
-            <select
-              value={answerLang}
-              onChange={(e)=>setAnswerLang(e.target.value as "fr"|"ru")}
-              className="rounded-xl border px-3 py-2"
-            >
-              <option value="ru">🇷🇺 Russe</option>
-              <option value="fr">🇫🇷 Français</option>
-            </select>
-          </div>
-        )}
+        <div className="grid gap-4">
+          <PrettySelect
+            id="spoken"
+            label="Je parle (je répondrai en…)"
+            value={answerLang}
+            onChange={(v) => setAnswerLang(v as "fr"|"ru")}
+            options={[
+              { value: "fr", label: "Français", emoji: "🇫🇷" },
+              { value: "ru", label: "Русский (russe)", emoji: "🇷🇺" },
+            ]}
+            hint="Ta langue pour écrire les réponses."
+          />
 
+          <PrettySelect
+            id="course"
+            label="Je veux apprendre"
+            value={course}
+            onChange={(v) => setCourse(v as "en"|"fr")}
+            options={[
+              { value: "en", label: "Anglais", emoji: "🇬🇧" },
+              { value: "fr", label: "Français", emoji: "🇫🇷" },
+            ]}
+          />
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => {
-              saveProfile({
-                deviceId: crypto.randomUUID(),
-                variant,
-                goal,
-                createdAt: new Date().toISOString(),
-                course,
-                answerLang,
-              });
-              onDone();
-            }}
-            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-2xl"
-          >
-            ✅ Valider et continuer
+          {course === "en" && (
+            <PrettySelect
+              id="variant"
+              label="Variante d’anglais"
+              value={variant}
+              onChange={(v) => setVariant(v as EnglishVariant)}
+              options={[
+                { value: "british", label: "Anglais britannique", emoji: "🇬🇧" },
+                { value: "american", label: "Anglais américain", emoji: "🇺🇸" },
+              ]}
+            />
+          )}
+
+          <PrettySelect
+            id="goal"
+            label="Objectif"
+            value={goal}
+            onChange={(v) => setGoal(v as Goal)}
+            options={[
+              { value: "everyday", label: "Vie quotidienne", emoji: "🏠" },
+              { value: "travel", label: "Voyage", emoji: "🧳" },
+              { value: "work", label: "Travail", emoji: "💼" },
+              { value: "exams", label: "Examens", emoji: "📝" },
+            ]}
+          />
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button onClick={save} className="flex-1 rounded-2xl bg-indigo-600 text-white py-2 hover:bg-indigo-700">
+            C’est parti 🚀
           </button>
-          <button onClick={onClose} className="px-4 py-3 rounded-2xl border">
-            Annuler
-          </button>
+          {hasProfile() && (
+            <button onClick={onClose} className="rounded-2xl border py-2 px-3 hover:bg-gray-50">
+              Plus tard
+            </button>
+          )}
         </div>
 
         <p className="text-xs text-gray-500">
-          Ton choix est mémorisé sur cet appareil (localStorage). Tu pourras le changer dans ⚙️ Réglages.
+          Astuce : chaque appareil garde son profil en mémoire (pas de compte requis).
         </p>
       </div>
     </div>

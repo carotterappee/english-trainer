@@ -1,5 +1,6 @@
 
 "use client";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { hasProfile } from "@/lib/profile";
@@ -7,14 +8,13 @@ import { useState } from "react";
 import SelectProfileModal from "@/components/SelectProfileModal";
 import CloudBackground from "@/components/CloudBackground";
 
+
 export default function Home() {
   const router = useRouter();
-  const [modalOpen, setModalOpen] = useState(false);
+  const [open, setOpen] = useState(false);
 
-  const start = () => {
-    if (hasProfile()) router.push("/mission");
-    else setModalOpen(true);
-  };
+  // Ouvre la modale si le profil n'est pas complet, sinon lance la mission
+  const start = () => (hasProfile() ? router.push("/mission") : setOpen(true));
 
   return (
     <main className="relative min-h-screen flex items-center justify-center p-6">
@@ -29,6 +29,7 @@ export default function Home() {
       <div className="relative z-10 w-full max-w-md bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-8 space-y-6">
         <h1 className="text-3xl font-bold text-center text-indigo-700">🌍 English Trainer</h1>
         <p className="text-center text-gray-600">Ta mission du jour en anglais — 15 minutes chrono.</p>
+
 
         <button
           onClick={start}
@@ -49,9 +50,10 @@ export default function Home() {
         <p className="text-center text-sm text-gray-400">Progression sauvegardée automatiquement</p>
       </div>
 
+
       <SelectProfileModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        open={open}
+        onClose={() => setOpen(false)}
         onDone={() => router.push("/mission")}
       />
     </main>
