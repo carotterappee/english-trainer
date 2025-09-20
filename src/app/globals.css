@@ -1,57 +1,100 @@
-/* Lune */
+/* ===== Night Sky FX ===== */
+:root[data-theme="night"] .nightfx{position:absolute; inset:0; z-index:0;}
+
+/* Lune douce */
 :root[data-theme="night"] .moon{
   position:absolute; top:8vh; right:10vw; width:120px; height:120px; border-radius:50%;
-  pointer-events:none; z-index:0; opacity:.9;
   background:
-    radial-gradient(60% 60% at 40% 40%, #fff, #ffd 40%, #ffc 55%, transparent 65%),
-    radial-gradient(12px 12px at 70% 60%, #ffe, transparent 60%),
-    radial-gradient(8px 8px at 30% 30%, #ffe, transparent 60%);
-  box-shadow: 0 0 30px 10px rgba(255,255,210,.35), 0 0 80px rgba(255,255,210,.25) inset;
+    radial-gradient(60% 60% at 40% 40%, #fff, #ffe9a8 42%, #ffd978 58%, transparent 66%),
+    radial-gradient(10px 10px at 70% 60%, #fff3c0, transparent 60%),
+    radial-gradient(8px 8px at 30% 30%, #fff3c0, transparent 60%);
+  box-shadow: 0 0 32px 12px rgba(255, 240, 160, .25), inset 0 0 60px rgba(255, 240, 160, .35);
 }
 
-/* Étoiles : 2 couches, tailles & vitesses différentes */
-:root[data-theme="night"] .stars{position:absolute; inset:0; pointer-events:none; z-index:0;}
-:root[data-theme="night"] .stars.l1::before,
-:root[data-theme="night"] .stars.l1::after{
-  content:""; position:absolute; inset:-10%;
-  background:
-    radial-gradient(1.5px 1.5px at 10% 20%, #fff8, transparent 60%),
-    radial-gradient(1px 1px   at 30% 70%, #fff6, transparent 60%),
-    radial-gradient(1.2px 1.2px at 70% 40%, #fff7, transparent 60%),
-    radial-gradient(1px 1px   at 85% 15%, #fff5, transparent 60%);
-  animation: twinkle 6s ease-in-out infinite, float1 120s linear infinite;
-}
-:root[data-theme="night"] .stars.l2::before,
-:root[data-theme="night"] .stars.l2::after{
-  content:""; position:absolute; inset:-10%;
-  background:
-    radial-gradient(2px 2px at 20% 30%, #fff, transparent 60%),
-    radial-gradient(1.6px 1.6px at 60% 80%, #fff, transparent 60%),
-    radial-gradient(1.4px 1.4px at 80% 25%, #fff, transparent 60%);
-  opacity:.8; filter: blur(.2px);
-  animation: twinkle 8s ease-in-out infinite, float2 180s linear infinite;
-}
-@keyframes twinkle { 50%{opacity:.5} }
-@keyframes float1 { from{transform:translateY(0)} to{transform:translateY(-4%)} }
-@keyframes float2 { from{transform:translateY(0)} to{transform:translateY(3%)} }
+/* Étoiles : 3 couches avec parallax + twinkle subtil */
+:root[data-theme="night"] .starfield{position:absolute; inset:-10%;}
 
-/* Étoile filante */
-:root[data-theme="night"] .meteor{
-  position:absolute; top:-8vh; left:-15vw; width:2px; height:2px; pointer-events:none; z-index:0;
-  background: linear-gradient(90deg, #fff, rgba(255,255,255,0));
-  transform: rotate(35deg);
-  box-shadow: 0 0 6px 2px #fff;
-  animation: shoot 7s linear infinite;
-  opacity:.0; /* elle n’apparaît que pendant son passage */
+:root[data-theme="night"] .starfield.l1{
+  filter: blur(.2px);
+  animation: floatSlow 160s linear infinite;
+  background:
+    radial-gradient(1.2px 1.2px at 12% 22%, #fff8, transparent 60%),
+    radial-gradient(1.2px 1.2px at 36% 78%, #fff7, transparent 60%),
+    radial-gradient(1px 1px   at 68% 35%, #fff6, transparent 60%),
+    radial-gradient(1px 1px   at 82% 14%, #fff6, transparent 60%),
+    radial-gradient(1.2px 1.2px at 90% 60%, #fff8, transparent 60%);
+}
+:root[data-theme="night"] .starfield.l2{
+  animation: floatMid 120s linear infinite;
+  background:
+    radial-gradient(1.6px 1.6px at 20% 30%, #fff, transparent 60%),
+    radial-gradient(1.5px 1.5px at 55% 70%, #fff, transparent 60%),
+    radial-gradient(1.4px 1.4px at 80% 25%, #fff, transparent 60%),
+    radial-gradient(1.3px 1.3px at 35% 50%, #fff, transparent 60%);
+}
+:root[data-theme="night"] .starfield.l3{
+  filter: blur(.6px) brightness(.9);
+  animation: floatSlow 200s linear infinite reverse;
+  background:
+    radial-gradient(1px 1px at 15% 80%, #fff7, transparent 60%),
+    radial-gradient(1px 1px at 65% 20%, #fff7, transparent 60%),
+    radial-gradient(1px 1px at 88% 66%, #fff7, transparent 60%),
+    radial-gradient(1px 1px at 40% 10%, #fff7, transparent 60%);
+}
+
+/* scintillement (appliqué via pseudo-éléments pour micro-variation) */
+:root[data-theme="night"] .starfield::before,
+:root[data-theme="night"] .starfield::after{
+  content:""; position:absolute; inset:0;
+  background: inherit;
+  animation: twinkle 7s ease-in-out infinite;
+  opacity:.85;
+}
+:root[data-theme="night"] .starfield::after{
+  animation-duration: 9s;
+  opacity:.6;
+}
+
+@keyframes twinkle { 50%{ opacity:.45 } }
+@keyframes floatMid { from{transform:translateY(0)} to{transform:translateY(3%)} }
+@keyframes floatSlow{ from{transform:translateY(0)} to{transform:translateY(-4%)} }
+
+/* Étoiles filantes (traînée douce + tête brillante) */
+:root[data-theme="night"] .shooting{
+  --delay: 10s;
+  --dur: 2.4s;
+  --top: 15%;
+  --left: -15%;
+  --rot: 20deg;
+  position:absolute; top:var(--top); left:var(--left); width:220px; height:2px;
+  transform: rotate(var(--rot));
+  animation: shoot var(--dur) ease-in var(--delay) infinite;
+  opacity:0;
+}
+:root[data-theme="night"] .shooting::before{
+  /* traînée */
+  content:""; position:absolute; left:0; top:0; right:0; bottom:0;
+  background: linear-gradient(90deg, rgba(255,255,255,.9), rgba(255,255,255,.0) 65%);
+  filter: drop-shadow(0 0 6px rgba(255,255,255,.6));
+}
+:root[data-theme="night"] .shooting::after{
+  /* tête brillante */
+  content:""; position:absolute; left:-2px; top:-2px; width:6px; height:6px; border-radius:50%;
+  background: radial-gradient(circle, #fff, #fff0 70%);
+  box-shadow: 0 0 10px 4px rgba(255,255,255,.65);
 }
 @keyframes shoot{
-  0%   {opacity:0; transform:translate(-15vw,-8vh) rotate(35deg)}
-  8%   {opacity:.95; transform:translate(110vw,60vh) rotate(35deg)}
-  9%   {opacity:0}
-  100% {opacity:0; transform:translate(110vw,60vh) rotate(35deg)}
+  0%   { opacity:0; transform:translate3d(0,0,0) rotate(var(--rot)); }
+  6%   { opacity:1; }
+  100% { opacity:0; transform:translate3d(120vw, 60vh, 0) rotate(var(--rot)); }
 }
+
+/* Respecte les préférences d’accessibilité */
 @media (prefers-reduced-motion: reduce){
-  .moon,.stars,.meteor{animation:none}
+  :root[data-theme="night"] .starfield,
+  :root[data-theme="night"] .starfield::before,
+  :root[data-theme="night"] .starfield::after,
+  :root[data-theme="night"] .shooting { animation:none }
 }
 /* Themes */
 :root[data-theme="clouds"] body { background: #f7fbff; }
@@ -65,27 +108,6 @@
   background: #f7f4ef url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath fill='%23eae4da' d='M0 59h60v1H0z'/%3E%3C/svg%3E") repeat;
 }
 
-/* Night stars */
-:root[data-theme="night"] .stars { position: absolute; inset:0; pointer-events:none; z-index:0; }
-:root[data-theme="night"] .stars::before,
-:root[data-theme="night"] .stars::after {
-  content:""; position:absolute; inset:0;
-  background:
-    radial-gradient(2px 2px at 20% 30%, #fff8, transparent),
-    radial-gradient(1px 1px at 60% 70%, #fff6, transparent),
-    radial-gradient(1.5px 1.5px at 80% 20%, #fff7, transparent),
-    radial-gradient(1px 1px at 35% 80%, #fff5, transparent);
-  animation: twinkle 6s linear infinite;
-}
-@keyframes twinkle { 50% { opacity:.6 } }
-
-/* Sunset waves (bottom overlay) */
-:root[data-theme="sunset"] .waves {
-  position:absolute; left:0; right:0; bottom:0; height:140px; pointer-events:none; z-index:0;
-  background:
-    radial-gradient(50% 80% at 50% 120%, rgba(255,255,255,.35), transparent 70%),
-    linear-gradient(180deg, transparent, rgba(255,255,255,.3));
-}
 @import "tailwindcss";
 
 :root {
@@ -93,12 +115,6 @@
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
 @media (prefers-color-scheme: dark) {
   :root {

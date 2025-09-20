@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import SelectProfileModal from "@/components/SelectProfileModal";
 import SelectDurationModal from "@/components/SelectDurationModal";
 import CloudBackground from "@/components/CloudBackground";
+import NightSkyFX from "@/components/NightSkyFX";
 import { hasActiveSession, startSession } from "@/lib/session";
 
 
@@ -36,13 +37,8 @@ export default function Home() {
   return (
     <main className="relative min-h-screen flex items-center justify-center p-6">
       <CloudBackground />
-      {/* Overlays décoratifs */}
-      <div className="moon" />
-      <div className="stars l1" />
-      <div className="stars l2" />
-      <div className="meteor" />
-      <div className="stars" />
-      <div className="waves" />
+      <NightSkyFX />
+      {/* Overlays décoratifs retirés : gérés par NightSkyFX */}
       <div className="relative z-10 w-full max-w-md bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-8 space-y-6">
         <h1 className="text-3xl font-bold text-center text-indigo-700">🌍 English Trainer</h1>
         <p className="text-center text-gray-600">Ta mission du jour en anglais — 15 minutes chrono.</p>
