@@ -57,11 +57,10 @@ export default function Home() {
 
 
 
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <Link href="/progress"   className="text-center rounded-2xl border py-2 hover:bg-indigo-50 transition">📈 Progression</Link>
           <Link href="/flashcards" className="text-center rounded-2xl border py-2 hover:bg-indigo-50 transition">🧠 Flashcards</Link>
           <Link href="/chest"      className="text-center rounded-2xl border py-2 hover:bg-indigo-50 transition">🧰 Coffre</Link>
-          <Link href="/settings"   className="text-center rounded-2xl border py-2 hover:bg-indigo-50 transition">⚙️ Réglages</Link>
         </div>
 
         <p className="text-center text-sm text-gray-400">Progression sauvegardée automatiquement</p>
