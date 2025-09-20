@@ -1,3 +1,28 @@
+// ...existing code...
+// doublon supprimé
+
+// doublon supprimé
+
+/** Suggestions FR simples (pluriel -s, accord -e, élision) */
+export function frenchHints(expected: string, user: string): string[] {
+  const e = expected.toLowerCase();
+  const u = user.toLowerCase();
+  const hints: string[] = [];
+
+  if (e.includes("les ") || e.includes("des ") || e.match(/\b(nous|vous|ils|elles)\b/)) {
+    // manque possible du 's' pluriel
+    if (normalizeAnswer(e) !== normalizeAnswer(u) && /[a-z]s\b/.test(e) && !/[a-z]s\b/.test(u)) {
+      hints.push("Pluriel : il manque peut-être un « s ».");
+    }
+  }
+  if (e.match(/\b(la|une)\b/) && !u.match(/\b(la|une)\b/) && u.match(/\b(l'|l’)/)) {
+    hints.push("Élision : “l’ ” au bon endroit.");
+  }
+  if (e.match(/\b(je suis|elle est)\b/) && u.match(/\b(je suis|elle est)\b/)) {
+    if (e.includes("e ") && !u.includes("e ")) hints.push("Accord : ajoute “-e” si nécessaire (féminin).");
+  }
+  return hints;
+}
 
 // Outils de texte : comparaison tolérante & filtrage pour la traduction
 
