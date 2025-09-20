@@ -10,6 +10,7 @@ import { isPassed, markSeen, sentenceId } from "@/lib/seenStore";
 import { evaluateFrenchAnswer, evaluateAnswerGeneric } from "@/lib/textUtils";
 import { VARIANT_FLAG, GOAL_LABEL } from "@/lib/profile";
 import { addCoins } from "@/lib/coins";
+import { loadSession, saveSession, clearSession as clearSess, secondsLeft, startSession } from "@/lib/session";
 import Timer from "@/components/Timer";
 // Typage pour l'accès window custom
 type SessionWindow = Window & { __sessionScore?: number; __sessionMinutes?: number };
@@ -21,6 +22,21 @@ import Coin from "@/components/Coin";
 export default function Mission() {
   const router = useRouter();
   const profile = loadProfile();
+
+  // Timer/session state (remplacement)
+  const sess0 = loadSession();
+  const [left, setLeft] = useState<number>(sess0 ? secondsLeft(sess0) : 900);
+  const durationTotal = sess0?.durationSec ?? 900;
+  const [ended, setEnded] = useState<boolean>(false);
+  useEffect(() => {
+    if (!sess0) {
+      // si on arrive ici sans session (ex: lien direct), on crée par défaut 15 min
+      if (!profile) return;
+      const s = startSession(profile, 15);
+      setLeft(secondsLeft(s));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Hooks toujours appelés, valeurs par défaut si pas de profil
   const isEn = (profile?.course ?? "en") === "en";
@@ -46,7 +62,6 @@ export default function Mission() {
   const [correctCount, setCorrectCount] = useState<number>(0);
   const [attempts, setAttempts] = useState<number>(0);
   const [sessionCoins, setSessionCoins] = useState<number>(0);
-  const [ended, setEnded] = useState<boolean>(false);
   const current = idx === null ? null : bank[idx];
   const currentId = idx === null ? "" : idsBase[idx];
   // Typage correct pour EN->FR ou FR->RU
@@ -134,10 +149,23 @@ export default function Mission() {
     if (res.ok) {
       setFeedback("ok");
       setCorrectCount(c => c + 1);
-  setSessionCoins(c => c + 5); // 5 pièces par bonne réponse (valeur par défaut)
+      setSessionCoins(c => c + 5); // 5 pièces par bonne réponse (valeur par défaut)
       markSeen(profile.goal, currentId, true);
+      // pièces immédiates
+      addCoins(5, profile.goal);
+      // persiste la session (coins/attempts/correct)
+      const s = loadSession();
+      if (s) {
+        s.coins += 5;
+        s.attempts += 1;
+        s.correct += 1;
+        saveSession(s);
+      }
     } else {
       setFeedback("ko");
+      // même en cas d’échec, incrémente attempts
+      const s2 = loadSession();
+      if (s2) { s2.attempts += 1; saveSession(s2); }
     }
     setNotes(res.notes);
   }
@@ -200,7 +228,16 @@ export default function Mission() {
 
       {/* En-tête : timer + pièces */}
       <div className="p-4 rounded-2xl border flex items-center gap-4 bg-white">
-        <Timer durationSec={SESSION_SECONDS} onElapsed={finishSession} />
+        <Timer
+          durationSec={durationTotal}
+          initialLeft={left}
+          onTick={(n) => setLeft(n)}
+          onElapsed={() => {
+            setEnded(true);
+            const s = loadSession();
+            if (s) { s.ended = true; saveSession(s); }
+          }}
+        />
         <div className="ml-auto flex items-center gap-2">
           <Coin size={22} />
           <span className="font-medium">{sessionCoins}</span>
@@ -300,8 +337,11 @@ export default function Mission() {
               <button onClick={() => router.push("/chest")} className="rounded-2xl bg-indigo-600 text-white py-2">
                 Ouvrir le coffre 🧰
               </button>
-              <button onClick={() => location.reload()} className="rounded-2xl border py-2">
-                Rejouer 15 min
+              <button
+                onClick={() => { clearSess(); location.assign("/"); }}
+                className="rounded-2xl border py-2"
+              >
+                Retour à l’accueil
               </button>
             </div>
           </div>

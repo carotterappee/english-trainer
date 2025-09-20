@@ -1,25 +1,39 @@
 "use client";
 import { useEffect, useState } from "react";
 
+
 export default function Timer({
   durationSec = 900,
+  initialLeft,
+  onTick,
   onElapsed,
-}: { durationSec?: number; onElapsed: () => void }) {
-  const [left, setLeft] = useState<number>(durationSec);
+}: {
+  durationSec?: number;
+  initialLeft?: number;
+  onTick?: (left: number) => void;
+  onElapsed: () => void;
+}) {
+  const [left, setLeft] = useState<number>(initialLeft ?? durationSec);
+
+  useEffect(() => {
+    if (typeof initialLeft === "number") setLeft(initialLeft);
+  }, [initialLeft]);
 
   useEffect(() => {
     const id = setInterval(() => {
       setLeft((s) => {
-        if (s <= 1) {
+        const n = s - 1;
+        if (onTick) onTick(Math.max(0, n));
+        if (n <= 0) {
           clearInterval(id);
           onElapsed();
           return 0;
         }
-        return s - 1;
+        return n;
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [onElapsed]);
+  }, [onTick, onElapsed]);
 
   const mm = Math.floor(left / 60).toString().padStart(2, "0");
   const ss = (left % 60).toString().padStart(2, "0");

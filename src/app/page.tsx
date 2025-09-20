@@ -3,18 +3,35 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { hasProfile } from "@/lib/profile";
-import { useState } from "react";
+import { hasProfile, loadProfile } from "@/lib/profile";
+import { useEffect, useState } from "react";
 import SelectProfileModal from "@/components/SelectProfileModal";
+import SelectDurationModal from "@/components/SelectDurationModal";
 import CloudBackground from "@/components/CloudBackground";
+import { hasActiveSession, startSession } from "@/lib/session";
+
 
 
 export default function Home() {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [profileModal, setProfileModal] = useState(false);
+  const [durationModal, setDurationModal] = useState(false);
+  const [active, setActive] = useState(false);
 
-  // Ouvre la modale si le profil n'est pas complet, sinon lance la mission
-  const start = () => (hasProfile() ? router.push("/mission") : setOpen(true));
+  useEffect(() => { setActive(hasActiveSession()); }, []);
+
+  const onPrimary = () => {
+    if (!hasProfile()) return setProfileModal(true);
+    if (active) return router.push("/mission");
+    setDurationModal(true);
+  };
+
+  const startWithDuration = (minutes: number) => {
+    const p = loadProfile();
+    if (!p) return setProfileModal(true);
+    startSession(p, minutes);
+    router.push("/mission");
+  };
 
   return (
     <main className="relative min-h-screen flex items-center justify-center p-6">
@@ -31,11 +48,10 @@ export default function Home() {
         <p className="text-center text-gray-600">Ta mission du jour en anglais — 15 minutes chrono.</p>
 
 
-        <button
-          onClick={start}
-          className="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-2xl shadow-lg transition"
-        >
-          🚀 Commencer la mission
+
+        <button onClick={onPrimary}
+          className="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-2xl shadow-lg transition">
+          {active ? "▶️ Continuer la mission" : "🚀 Commencer (choisir durée)"}
         </button>
 
 
@@ -51,11 +67,9 @@ export default function Home() {
       </div>
 
 
-      <SelectProfileModal
-        open={open}
-        onClose={() => setOpen(false)}
-        onDone={() => router.push("/mission")}
-      />
+
+      <SelectProfileModal open={profileModal} onClose={() => setProfileModal(false)} onDone={() => setDurationModal(true)} />
+      <SelectDurationModal open={durationModal} onClose={() => setDurationModal(false)} onStart={startWithDuration} />
     </main>
   );
 }
