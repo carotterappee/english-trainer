@@ -1,3 +1,5 @@
+export type AvatarMode = "vector" | "pixel";
+
 export type AvatarConfig = {
   skin: "peach" | "tan" | "brown" | "dark";
   hairStyle: "bald" | "short" | "bun" | "curly" | "mohawk";
@@ -5,6 +7,9 @@ export type AvatarConfig = {
   outfit: "tshirt" | "hoodie" | "sweater";
   outfitColor: "blue" | "green" | "purple" | "pink";
   accessory: "none" | "glasses" | "earrings" | "cap";
+  scarf?: boolean;
+  mode?: AvatarMode;
+  bottom?: "shorts" | "skirt" | "pants";
 };
 
 export function defaultAvatar(): AvatarConfig {
@@ -15,6 +20,8 @@ export function defaultAvatar(): AvatarConfig {
     outfit: "tshirt",
     outfitColor: "blue",
     accessory: "none",
+    scarf: false,
+    mode: "pixel",
   };
 }
 export const VARIANT_FLAG: Record<EnglishVariant, string> = {

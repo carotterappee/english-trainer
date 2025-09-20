@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import Avatar from "@/components/avatar/Avatar";
+import PixelAvatar, { type PixelCfg } from "@/components/avatar/PixelAvatar";
 import { loadProfile, updateAvatar, defaultAvatar, type AvatarConfig } from "@/lib/profile";
 
 const SKINS: AvatarConfig["skin"][] = ["peach", "tan", "brown", "dark"];
@@ -9,6 +10,7 @@ const HAIRCOLORS: AvatarConfig["hairColor"][] = ["black", "brown", "blonde", "re
 const OUTFITS: AvatarConfig["outfit"][] = ["tshirt", "hoodie", "sweater"];
 const OUTFITCOLORS: AvatarConfig["outfitColor"][] = ["blue", "green", "purple", "pink"];
 const ACCESSORIES: AvatarConfig["accessory"][] = ["none", "glasses", "earrings", "cap"];
+const BOTTOMS: PixelCfg["bottom"][] = ["shorts", "skirt", "pants"];
 
 function rand<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
 function randomAvatar(): AvatarConfig {
@@ -40,6 +42,19 @@ export default function ProfilePage() {
   const reset = () => { const d = defaultAvatar(); setCfg(d); setSaved(false); };
   const randomize = () => { setCfg(randomAvatar()); setSaved(false); };
 
+  // Mapping pour PixelAvatar
+  const pixelCfg = {
+    size: 160,
+    skin: cfg.skin === "peach" ? "light" : cfg.skin as PixelCfg["skin"],
+    hairStyle: cfg.hairStyle === "bun" ? "bun" : cfg.hairStyle === "short" ? "short" : "long",
+    hairColor: cfg.hairColor as PixelCfg["hairColor"],
+    top: cfg.outfit === "hoodie" ? "hoodie" : cfg.outfit === "tshirt" ? "tshirt" : "sweater",
+    topColor: cfg.outfitColor as PixelCfg["topColor"],
+    bottom: cfg.bottom ?? "shorts",
+    glasses: cfg.accessory === "glasses",
+    scarf: !!cfg.scarf,
+  } satisfies PixelCfg;
+
   return (
     <main className="min-h-screen p-8 max-w-3xl mx-auto space-y-6">
       <h1 className="text-2xl font-semibold">Mon profil</h1>
@@ -47,11 +62,33 @@ export default function ProfilePage() {
       <div className="grid md:grid-cols-2 gap-6">
         {/* Aperçu */}
         <div className="p-6 rounded-3xl border bg-white flex flex-col items-center gap-4">
-          <Avatar size={160} cfg={cfg} />
+          {(cfg.mode ?? "pixel") === "pixel"
+            ? <PixelAvatar {...pixelCfg} />
+            : <Avatar size={160} cfg={cfg} />}
           <div className="flex gap-3">
             <button onClick={randomize} className="rounded-2xl border px-3 py-2 hover:bg-indigo-50">🎲 Aléatoire</button>
             <button onClick={reset} className="rounded-2xl border px-3 py-2 hover:bg-indigo-50">↩️ Réinitialiser</button>
             <button onClick={save} className="rounded-2xl bg-indigo-600 text-white px-4 py-2">💾 Enregistrer</button>
+          </div>
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => set("mode", "pixel")}
+              className={`px-3 py-2 rounded-2xl border ${cfg.mode !== "vector" ? "bg-indigo-50 border-indigo-600" : ""}`}
+            >
+              🟪 Pixel
+            </button>
+            <button
+              onClick={() => set("mode", "vector")}
+              className={`px-3 py-2 rounded-2xl border ${cfg.mode === "vector" ? "bg-indigo-50 border-indigo-600" : ""}`}
+            >
+              🟦 Vector
+            </button>
+          </div>
+          <div className="mt-2">
+            <label className="inline-flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={!!cfg.scarf} onChange={(e)=>set("scarf", Boolean(e.target.checked))} />
+              <span>🧣 Écharpe</span>
+            </label>
           </div>
           {saved && <p className="text-emerald-700 text-sm">✅ Profil enregistré sur cet appareil.</p>}
         </div>
@@ -83,6 +120,15 @@ export default function ProfilePage() {
               renderLabel={(v) => v}
             />
             <Swatches options={OUTFITCOLORS} value={cfg.outfitColor} onChange={(v) => set("outfitColor", v)} type="outfit" />
+          </Section>
+
+          <Section title="Bas (short/jupe/pantalon)">
+            <GridButtons
+              options={BOTTOMS}
+              value={cfg.bottom ?? "shorts"}
+              onChange={(v) => set("bottom", v)}
+              renderLabel={(v) => v}
+            />
           </Section>
 
           <Section title="Accessoire">
