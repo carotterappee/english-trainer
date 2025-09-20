@@ -126,10 +126,11 @@ export default function Mission() {
     let alive = true;
     if (!selected) return setTranslations(null);
     const src = isEn ? "en" : "fr";
-    const tgt = isEn ? "fr" : (profile?.answerLang ?? "ru");
+    // Correction forcée : tgt ne peut être que "en" ou "fr"
+    const tgt: "en" | "fr" = isEn ? "fr" : "en";
     translateWordGeneric(selected, src, tgt).then((res) => { if (alive) setTranslations(res); });
     return () => { alive = false; };
-  }, [selected, isEn, profile?.answerLang]);
+  }, [selected, isEn]);
 
   if (!profile) return null;
 
