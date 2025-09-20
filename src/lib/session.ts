@@ -13,7 +13,7 @@ export type Session = {
   attempts: number;
   correct: number;
   ended?: boolean;
-  // ⬇️ nouveau
+  // ⬇️ nouveau (trigger redeploy)
   levelStart?: number;
 };
 
