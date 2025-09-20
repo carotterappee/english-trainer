@@ -1,3 +1,94 @@
+// --- normalisation & tokenisation ---
+export function stripAccents(s: string) {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+export function normalizeFr(s: string) {
+  return stripAccents(s.toLowerCase())
+    .replace(/[^a-z0-9\s'-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+export function splitWordsFr(s: string) {
+  return normalizeFr(s).split(" ").filter(Boolean);
+}
+
+// --- Levenshtein pour "petites fautes" ---
+export function levenshtein(a: string, b: string) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,     // suppr
+        dp[i][j - 1] + 1,     // insertion
+        dp[i - 1][j - 1] + cost // substitution
+      );
+    }
+  }
+  return dp[m][n];
+}
+
+// --- appariement "souple" mot à mot ---
+type Issue = "missing_final_s" | "accent" | "minor_typo";
+
+export function nearMatch(exp: string, got: string): { ok: boolean; issue?: Issue } {
+  const e = normalizeFr(exp);
+  const g = normalizeFr(got);
+  if (e === g) return { ok: true };
+
+  // cas: accent différent mais même sans accents
+  if (stripAccents(exp.toLowerCase()) === stripAccents(got.toLowerCase()) && exp !== got) {
+    return { ok: true, issue: "accent" };
+  }
+  // cas: oubli d'un -s final (ex: "prends" vs "prend")
+  if (e.endsWith("s") && e.slice(0, -1) === g) {
+    return { ok: true, issue: "missing_final_s" };
+  }
+  // petite faute (distance faible)
+  const d = levenshtein(e, g);
+  const threshold = Math.max(1, Math.floor(e.length * 0.2)); // tolérance ~20%
+  if (d <= threshold) return { ok: true, issue: "minor_typo" };
+
+  return { ok: false };
+}
+
+// --- évalue toute la phrase (tolère adjectifs en plus) ---
+export function evaluateFrenchAnswer(expected: string, user: string) {
+  const exp = splitWordsFr(expected);
+  const ans = splitWordsFr(user);
+  let matched = 0;
+  const used = new Set<number>();
+  const notes: string[] = [];
+
+  for (const ew of exp) {
+    // trouve le 1er mot de la réponse qui "matche presque"
+    let found = false;
+    for (let j = 0; j < ans.length; j++) {
+      if (used.has(j)) continue;
+      const test = nearMatch(ew, ans[j]);
+      if (test.ok) {
+        used.add(j);
+        matched++;
+        if (test.issue === "missing_final_s") notes.push(`Attention : “${ans[j]}” → il manque un “s”.`);
+        if (test.issue === "accent") notes.push(`Accent : “${ans[j]}” (accents à vérifier).`);
+        if (test.issue === "minor_typo") notes.push(`Petite faute sur “${ans[j]}”.`);
+        found = true;
+        break;
+      }
+    }
+    // si non trouvé, on laisse passer certains mots-outils (le, la, les, de, du, des, un, une)
+    if (!found && ["le","la","les","de","du","des","un","une","au","aux","à","et"].includes(ew)) {
+      matched++; // on ne pénalise pas
+    }
+  }
+
+  const score = matched / Math.max(1, exp.length);
+  const ok = score >= 0.85; // valide si ≥85% des mots attendus retrouvés
+  return { ok, score, notes };
+}
 export function softEquals(a: string, b: string): boolean {
   return normalize(a) === normalize(b);
 }

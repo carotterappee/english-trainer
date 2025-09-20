@@ -1,19 +1,8 @@
 "use client";
 import { loadWallet } from "@/lib/coins";
+import Coin from "@/components/Coin";
 
-function Coin({ size = 28 }: { size?: number }) {
-  return (
-    <span
-      className="inline-block rounded-full"
-      style={{
-        width: size, height: size,
-        background: "radial-gradient(circle at 30% 30%, #ffd7f2, #ff63c3 60%, #b11c8c)",
-        boxShadow: "0 6px 16px rgba(255, 99, 195, .35), inset 0 2px 6px rgba(255,255,255,.6)",
-      }}
-      aria-hidden
-    />
-  );
-}
+
 
 export default function Chest() {
   const w = loadWallet();
@@ -22,7 +11,7 @@ export default function Chest() {
       <h1 className="text-2xl font-semibold flex items-center gap-3">🧰 Treasure Chest</h1>
 
       <div className="p-6 rounded-3xl border bg-white flex items-center gap-4">
-        <Coin size={40} />
+  <Coin size={40} />
         <div className="text-3xl font-bold">{w.balance}</div>
         <div className="text-gray-500">pièces</div>
       </div>

@@ -6,9 +6,10 @@ import { loadProfile, VARIANT_FLAG, GOAL_LABEL, type UserProfile } from "@/lib/p
 import { getSentences, type SentenceItem } from "@/content/sentences";
 import { translateWord } from "@/lib/dict";
 import { addWord } from "@/lib/wordStore";
-import { normalize, softEquals } from "@/lib/textUtils";
+import { normalize, softEquals, evaluateFrenchAnswer } from "@/lib/textUtils";
 import { addCoins } from "@/lib/coins";
 import Timer from "@/components/Timer";
+import Coin from "@/components/Coin";
 
 // --- utils ---
 type Token = { t: string; isWord: boolean };
@@ -53,6 +54,7 @@ export default function Mission() {
   const [selected, setSelected] = useState<string | null>(null);
   const [answerFr, setAnswerFr] = useState<string>("");
   const [feedback, setFeedback] = useState<"idle" | "ok" | "ko">("idle");
+  const [notes, setNotes] = useState<string[]>([]);
   const [correctCount, setCorrectCount] = useState<number>(0);
   const [attempts, setAttempts] = useState<number>(0);
   const [sessionCoins, setSessionCoins] = useState<number>(0);
@@ -73,14 +75,16 @@ export default function Mission() {
   if (!profile) return null;
 
   function check() {
+    const res = evaluateFrenchAnswer(current.fr, answerFr);
     setAttempts(a => a + 1);
-    if (softEquals(answerFr, current.fr)) {
+    if (res.ok) {
       setFeedback("ok");
       setCorrectCount(c => c + 1);
       setSessionCoins(c => c + COINS_PER_CORRECT);
     } else {
       setFeedback("ko");
     }
+    setNotes(res.notes);
   }
   function next() {
     setSelected(null);
@@ -106,15 +110,7 @@ export default function Mission() {
       <div className="p-4 rounded-2xl border flex items-center gap-4 bg-white">
         <Timer durationSec={SESSION_SECONDS} onElapsed={finishSession} />
         <div className="ml-auto flex items-center gap-2">
-          <span
-            className="inline-block rounded-full"
-            style={{
-              width: 22, height: 22,
-              background: "radial-gradient(circle at 30% 30%, #ffd7f2, #ff63c3 60%, #b11c8c)",
-              boxShadow: "0 4px 10px rgba(255, 99, 195, .35), inset 0 2px 5px rgba(255,255,255,.6)",
-            }}
-            aria-hidden
-          />
+          <Coin size={22} />
           <span className="font-medium">{sessionCoins}</span>
         </div>
       </div>
@@ -162,7 +158,10 @@ export default function Mission() {
         <textarea
           value={answerFr}
           onChange={(e) => { setAnswerFr(e.target.value); setFeedback("idle"); }}
-          placeholder="Écris la traduction en français…"
+          onKeyDown={e => {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); check(); }
+          }}
+          placeholder="Écris la traduction en français… (Entrée = vérifier)"
           className="w-full rounded-xl border p-3 min-h-[100px]"
         />
         <div className="flex flex-wrap gap-3">
@@ -182,6 +181,11 @@ export default function Mission() {
               ❌ Presque. Attendu : <em className="underline">{current.fr}</em>
             </span>
           )}
+          {notes.length > 0 && (
+            <ul className="text-sm text-gray-700 list-disc pl-5">
+              {notes.map((n, i) => <li key={i}>{n}</li>)}
+            </ul>
+          )}
         </div>
       </div>
 
@@ -192,14 +196,7 @@ export default function Mission() {
             <h2 className="text-xl font-semibold">Session terminée 🎉</h2>
             <p>Score : <b>{scorePct}</b>/100</p>
             <div className="flex items-center gap-2">
-              <span
-                className="inline-block rounded-full"
-                style={{
-                  width: 24, height: 24,
-                  background: "radial-gradient(circle at 30% 30%, #ffd7f2, #ff63c3 60%, #b11c8c)",
-                  boxShadow: "0 4px 10px rgba(255, 99, 195, .35), inset 0 2px 5px rgba(255,255,255,.6)",
-                }}
-              />
+              <Coin size={24} />
               <span>Tu as gagné <b>{sessionCoins}</b> pièces roses !</span>
             </div>
             <div className="grid grid-cols-2 gap-3">
