@@ -153,22 +153,30 @@ export default function ChestPage() {
 
 function prettyTheme(id: ThemeId) {
   switch (id) {
-    case "clouds": return "Clouds";
-    case "night": return "Night Sky";
-    case "sunset": return "Sunset";
-    case "paper": return "Paper";
+    case "clouds":  return "Clouds";
+    case "night":   return "Night Sky";
+    case "sunset":  return "Sunset";
+    case "winter":  return "Winter";
     case "dynamic": return "Auto Jour/Nuit";
-    default: return id;
+    default:        return id;
   }
 }
 
 function Preview({ id }: { id: ThemeId }) {
   const style: Record<ThemeId, string> = {
-    clouds: "bg-gradient-to-b from-sky-100 via-indigo-50 to-white",
-    night:  "bg-[radial-gradient(ellipse_at_20%_10%,#1b2340,#0b1024_60%,#080c1a)]",
-    sunset: "bg-gradient-to-b from-[#ff9a9e] via-[#fecfef] to-[#f6d365]",
-    paper:  "bg-[#f7f4ef]",
-    dynamic:"bg-gradient-to-r from-[#ff9a9e] via-[#f7fbff] to-[#0b1024]"
+    clouds:  "bg-gradient-to-b from-sky-100 via-indigo-50 to-white",
+    night:   "bg-[radial-gradient(ellipse_at_20%_10%,#1b2340,#0b1024_60%,#080c1a)]",
+    sunset:  "bg-gradient-to-b from-[#ff9a9e] via-[#fecfef] to-[#f6d365]",
+    winter:  "bg-gradient-to-b from-[#b8d9ff] via-[#e7f1ff] to-white",
+    dynamic: "bg-gradient-to-r from-[#ff9a9e] via-[#f7fbff] to-[#0b1024]"
   };
-  return <div className={`h-20 rounded-xl border ${style[id]}`} />;
+  return <div className={`h-20 rounded-xl border relative overflow-hidden ${style[id]}`}>
+    {id === "winter" && (
+      <div className="absolute inset-0 pointer-events-none"
+           style={{
+             backgroundImage:
+               "radial-gradient(2px 2px at 10% 20%, #fff, transparent 60%), radial-gradient(1.5px 1.5px at 40% 60%, #fff, transparent 60%), radial-gradient(2px 2px at 70% 30%, #fff, transparent 60%)"
+           }} />
+    )}
+  </div>;
 }
