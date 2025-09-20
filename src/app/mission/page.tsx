@@ -1,6 +1,6 @@
 "use client";
 
-  const [last, setLast] = useState<{ ok: boolean } | null>(null);
+
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loadProfile } from "@/lib/profile";
@@ -23,6 +23,7 @@ import Coin from "@/components/Coin";
 // Ajoutez ici d'autres imports de composants si besoin
 
 export default function Mission() {
+  const [last, setLast] = useState<{ ok: boolean } | null>(null);
   const router = useRouter();
   const profile = loadProfile();
   // État global pour le nombre d'essais sur la phrase courante
