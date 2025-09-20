@@ -1,3 +1,22 @@
+export type AvatarConfig = {
+  skin: "peach" | "tan" | "brown" | "dark";
+  hairStyle: "bald" | "short" | "bun" | "curly" | "mohawk";
+  hairColor: "black" | "brown" | "blonde" | "red";
+  outfit: "tshirt" | "hoodie" | "sweater";
+  outfitColor: "blue" | "green" | "purple" | "pink";
+  accessory: "none" | "glasses" | "earrings" | "cap";
+};
+
+export function defaultAvatar(): AvatarConfig {
+  return {
+    skin: "peach",
+    hairStyle: "short",
+    hairColor: "brown",
+    outfit: "tshirt",
+    outfitColor: "blue",
+    accessory: "none",
+  };
+}
 export const VARIANT_FLAG: Record<EnglishVariant, string> = {
   british: "🇬🇧",
   american: "🇺🇸",
@@ -28,7 +47,15 @@ export type UserProfile = {
   variant: EnglishVariant;
   goal: Goal;
   createdAt: string; // ISO
+  avatar?: AvatarConfig; // ⬅️ nouveau
 };
+export function updateAvatar(patch: Partial<AvatarConfig>) {
+  const cur = loadProfile();
+  if (!cur) return null;
+  const next = { ...cur, avatar: { ...(cur.avatar ?? defaultAvatar()), ...patch } };
+  saveProfile(next);
+  return next;
+}
 
 const KEY = "userProfile:v1";
 
