@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loadProfile } from "@/lib/profile";
+import { loadLevel, recordAnswer, targetWordRange, wordCount } from "@/lib/level";
 import { getSentences } from "@/content/sentences";
 import { sentencesFR } from "@/content/sentences_fr";
 import { applyVariant } from "@/lib/variant";
@@ -22,8 +23,13 @@ import Coin from "@/components/Coin";
 export default function Mission() {
   const router = useRouter();
   const profile = loadProfile();
+  // État global pour le nombre d'essais sur la phrase courante
+  const [tries, setTries] = useState(0);
+
 
   // Timer/session state (remplacement)
+  const course = profile?.course ?? "en";
+  const [lvl, setLvl] = useState(() => profile ? loadLevel(course, profile.goal).level : 1);
   const sess0 = loadSession();
   const [left, setLeft] = useState<number>(sess0 ? secondsLeft(sess0) : 900);
   const durationTotal = sess0?.durationSec ?? 900;
@@ -88,11 +94,11 @@ export default function Mission() {
   // Choix de la première phrase non vue/réussie
   useEffect(() => {
     if (profile) {
-      const first = pickNextUnseenIndex(null);
+      const first = pickNextIndexDifficultyAware(null);
       setIdx(first);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.goal, profile?.variant]);
+  }, [profile?.goal, profile?.variant, lvl]);
 
   // Score session dans window
   useEffect(() => {
@@ -121,22 +127,33 @@ export default function Mission() {
   if (!profile) return null;
 
 
-  // Sélection de la prochaine phrase non réussie
-  function pickNextUnseenIndex(from: number | null): number | null {
+  // Sélectionne une phrase non réussie dont la longueur colle au niveau (avec un peu d'aléatoire)
+  function pickNextIndexDifficultyAware(prev: number | null): number | null {
     if (!profile) return null;
-    // liste des indices non "passed"
-    const candidates: number[] = idsBase
+    const candidates = idsBase
       .map((_, i) => i)
       .filter(i => !isPassed(profile.goal, idsBase[i]));
-    if (candidates.length === 0) return null;
+    if (!candidates.length) return null;
 
-    // option: éviter de répéter immédiatement la même
-    const filtered = from === null ? candidates : candidates.filter(i => i !== from);
-    const list = filtered.length ? filtered : candidates;
+    const { min, max } = targetWordRange(lvl);
+    const mid = (min + max) / 2;
+    const lengthOf = (i: number) => {
+      const s = bankBase[i];
+      if (course === "en" && 'en' in s) return wordCount(s.en);
+      if ('fr' in s) return wordCount(s.fr);
+      return 0;
+    };
 
-    // tirage aléatoire simple
-    const pick = list[Math.floor(Math.random() * list.length)];
-    return pick;
+    const scored = candidates.map(i => {
+      const len = lengthOf(i);
+      const prox = Math.abs(len - mid);
+      const jitter = Math.random() * 0.4; // naturel
+      return { i, score: prox + jitter };
+    }).sort((a,b) => a.score - b.score);
+
+    const pool = prev == null ? scored : scored.filter(x => x.i !== prev);
+    const choice = pool.slice(0, Math.max(3, Math.ceil(pool.length * 0.2)));
+    return choice[Math.floor(Math.random()*choice.length)].i;
   }
 
   function check() {
@@ -146,6 +163,10 @@ export default function Mission() {
       : evaluateAnswerGeneric(expText, answerFr, 0.2);
     setAttempts(a => a + 1);
     markSeen(profile.goal, currentId, false);
+    // Gestion du niveau adaptatif
+    const firstTry = tries === 0;
+    const st = recordAnswer(profile, { ok: res.ok, tries: firstTry ? 1 : tries + 1 });
+    setLvl(st.level);
     if (res.ok) {
       setFeedback("ok");
       setCorrectCount(c => c + 1);
@@ -161,9 +182,11 @@ export default function Mission() {
         s.correct += 1;
         saveSession(s);
       }
+      setTries(0); // reset essais après succès
     } else {
       setFeedback("ko");
       // même en cas d’échec, incrémente attempts
+      setTries(t => t + 1);
       const s2 = loadSession();
       if (s2) { s2.attempts += 1; saveSession(s2); }
     }
@@ -175,8 +198,9 @@ export default function Mission() {
     setSelected(null);
     setAnswerFr("");
     setFeedback("idle");
-    const n = pickNextUnseenIndex(idx);
+    const n = pickNextIndexDifficultyAware(idx);
     setIdx(n);
+    setTries(0);
   }
   function finishSession() {
   setEnded(true);
@@ -223,6 +247,9 @@ export default function Mission() {
         <h1 className="text-2xl font-semibold">Mission du jour</h1>
         <span className="ml-auto text-sm rounded-full px-3 py-1 bg-indigo-100 text-indigo-800">
           {VARIANT_FLAG[profile.variant]} {GOAL_LABEL[profile.goal]}
+        </span>
+        <span className="ml-2 text-sm rounded-full px-3 py-1 bg-amber-100 text-amber-800">
+          Niveau {lvl}
         </span>
       </div>
 
@@ -295,6 +322,7 @@ export default function Mission() {
           onKeyDown={e => {
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); check(); }
           }}
+          onFocus={() => tries === 0 && setTries(1)}
           placeholder={isEn ? "Écris la traduction en français… (Entrée = vérifier)" : "Écris la traduction en russe… (Entrée = vérifier)"}
           className="w-full rounded-xl border p-3 min-h-[100px]"
         />
