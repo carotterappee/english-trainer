@@ -13,7 +13,7 @@ export default function SelectProfileModal({
   const [answerLang, setAnswerLang] = useState<"fr"|"ru">(existing?.answerLang ?? "fr");
   const [variant, setVariant] = useState<EnglishVariant>(existing?.variant ?? "british");
   // Sélection multiple de catégories (checkboxes)
-  const ALL_CATS: Goal[] = ["everyday", "travel", "work", "exams"];
+  const ALL_CATS: Goal[] = ["everyday", "travel", "work", "exams", "boost"];
   const [cats, setCats] = useState<Goal[]>(
     () => existing?.categories?.length ? existing.categories : (existing?.goal ? [existing.goal] : ["everyday"])
   );
@@ -82,18 +82,13 @@ export default function SelectProfileModal({
             ]}
           />
 
-          {course === "en" && (
-            <PrettySelect
-              id="variant"
-              label="Variante d’anglais"
-              value={variant}
-              onChange={(v) => setVariant(v as EnglishVariant)}
-              options={[
-                { value: "british", label: "Anglais britannique", emoji: "🇬🇧" },
-                { value: "american", label: "Anglais américain", emoji: "🇺🇸" },
-              ]}
-            />
+          {/* Variante d’anglais (US/UK) supprimée de l’UI */}
+          {/*
+          const SHOW_VARIANT = false;
+          {SHOW_VARIANT && course === "en" && (
+            <PrettySelect ... />
           )}
+          */}
 
           <div className="space-y-2">
             <div className="text-sm font-medium mb-1">Catégories</div>
@@ -110,7 +105,9 @@ export default function SelectProfileModal({
                   <span className="capitalize">
                     {g === "everyday" ? "Vie quotidienne" :
                      g === "travel"   ? "Voyage" :
-                     g === "work"     ? "Travail" : "Examens"}
+                     g === "work"     ? "Travail" :
+                     g === "exams"    ? "Examens" :
+                     g === "boost"    ? "Boost" : g}
                   </span>
                 </label>
               ))}

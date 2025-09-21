@@ -359,7 +359,9 @@ export default function Mission() {
           <span key={c} className="text-xs rounded-full bg-indigo-50 border border-indigo-200 px-2 py-0.5">
             {c === "everyday" ? "Vie quotidienne" :
              c === "travel"   ? "Voyage" :
-             c === "work"     ? "Travail" : "Examens"}
+             c === "work"     ? "Travail" :
+             c === "exams"    ? "Examens" :
+             c === "boost"    ? "Boost" : c}
           </span>
         ))}
       </div>

@@ -89,11 +89,25 @@ function makeDeviceId() {
   return "dev_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+
+// Migration du profil : supprime variant et convertit goal en categories
+
+function migrateProfile(p: Record<string, unknown>): UserProfile {
+  const copy = { ...p };
+  if (copy && "variant" in copy) delete copy.variant;
+  if (!copy.categories && copy.goal) copy.categories = [copy.goal];
+  return copy as UserProfile;
+}
+
 export function loadProfile(): UserProfile | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as UserProfile) : null;
+    const p = raw ? JSON.parse(raw) : null;
+    if (!p) return null;
+    const migrated = migrateProfile(p);
+    localStorage.setItem(KEY, JSON.stringify(migrated));
+    return migrated as UserProfile;
   } catch {
     return null;
   }
