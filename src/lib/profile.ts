@@ -38,10 +38,12 @@ export const GOAL_LABEL: Record<Goal, string> = {
   boost: "Boost",
 };
 
-export function updateProfile(patch: Partial<Pick<UserProfile, "variant" | "goal">>) {
+export function updateProfile(patch: Partial<Omit<UserProfile, "variant">>) {
   const cur = loadProfile();
   if (!cur) return null;
-  const next = { ...cur, ...patch };
+  // On retire explicitement variant si présent dans le patch
+  const clean = Object.fromEntries(Object.entries(patch).filter(([k]) => k !== "variant")) as Partial<Omit<UserProfile, "variant">>;
+  const next = { ...cur, ...clean };
   saveProfile(next);
   return next;
 }
