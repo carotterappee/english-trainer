@@ -2,7 +2,41 @@
 import { useMemo, useState } from "react";
 import Avatar from "@/components/avatar/Avatar";
 import PixelAvatar, { type PixelCfg } from "@/components/avatar/PixelAvatar";
-import { loadProfile, updateAvatar, defaultAvatar, type AvatarConfig } from "@/lib/profile";
+import { loadProfile } from "@/lib/profile";
+
+// Type local pour la config d’avatar
+type AvatarConfig = {
+  skin: "peach" | "tan" | "brown" | "dark";
+  hairStyle: "bald" | "short" | "bun" | "curly" | "mohawk";
+  hairColor: "black" | "brown" | "blonde" | "red";
+  outfit: "tshirt" | "hoodie" | "sweater";
+  outfitColor: "blue" | "green" | "purple" | "pink";
+  accessory: "none" | "glasses" | "earrings" | "cap";
+  bottom?: "shorts" | "skirt" | "pants";
+  mode?: "pixel" | "vector";
+  scarf?: boolean;
+};
+
+function defaultAvatar(): AvatarConfig {
+  return {
+    skin: "peach",
+    hairStyle: "short",
+    hairColor: "brown",
+    outfit: "tshirt",
+    outfitColor: "blue",
+    accessory: "none",
+    bottom: "shorts",
+    mode: "pixel",
+    scarf: false,
+  };
+}
+
+function updateAvatar(cfg: AvatarConfig) {
+  // Stockage local (optionnel, à adapter selon besoin)
+  const p = loadProfile() || {};
+  // Ici, on ne stocke pas l’avatar dans le profil (plus de champ avatar)
+  // Si besoin, remplacer par un stockage localStorage dédié
+}
 
 const SKINS: AvatarConfig["skin"][] = ["peach", "tan", "brown", "dark"];
 const HAIRSTYLES: AvatarConfig["hairStyle"][] = ["bald", "short", "bun", "curly", "mohawk"];
@@ -26,7 +60,7 @@ function randomAvatar(): AvatarConfig {
 
 export default function ProfilePage() {
   const p = loadProfile();
-  const [cfg, setCfg] = useState<AvatarConfig>(p?.avatar ?? defaultAvatar());
+  const [cfg, setCfg] = useState<AvatarConfig>(defaultAvatar());
   const [saved, setSaved] = useState(false);
 
   const set = <K extends keyof AvatarConfig>(k: K, v: AvatarConfig[K]) => {

@@ -13,7 +13,7 @@ import type { DictResult } from "@/lib/bigdict";
 import { isPassed, markSeen, sentenceId } from "@/lib/seenStore";
 import { normalizeAnswer, displayFriendly, isTranslatableToken, answersEqual, frenchHints } from "@/lib/textUtils";
 import Correction from "@/components/Correction";
-import { VARIANT_FLAG, GOAL_LABEL } from "@/lib/profile";
+import { GOAL_LABEL } from "@/lib/profile";
 import { addCoins } from "@/lib/coins";
 import { finalizeSession, clearSession, loadSession, saveSession, secondsLeft, startSession } from "@/lib/session";
 import Timer from "@/components/Timer";
@@ -312,7 +312,7 @@ export default function Mission() {
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold">Mission du jour</h1>
           <span className="ml-auto text-sm rounded-full px-3 py-1 bg-indigo-100 text-indigo-800">
-            {VARIANT_FLAG[profile.variant]} {key}
+            {key}
           </span>
         </div>
         <div className="flex flex-wrap gap-1.5 mb-2">
@@ -351,7 +351,7 @@ export default function Mission() {
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-semibold">Mission du jour</h1>
         <span className="ml-auto text-sm rounded-full px-3 py-1 bg-indigo-100 text-indigo-800">
-          {VARIANT_FLAG[profile.variant]} {key}
+          {key}
         </span>
       </div>
       <div className="flex flex-wrap gap-1.5 mb-2">
