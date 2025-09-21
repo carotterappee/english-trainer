@@ -6,12 +6,10 @@ export function getProfile(): UserProfile {
     return { categories: ["everyday"] } as UserProfile;
   }
   const raw = JSON.parse(localStorage.getItem("profile") || "{}") as Partial<UserProfile>;
-  const p: Partial<UserProfile> = raw || {};
-  // MIGRATION : enlever l’ancien 'variant' et normaliser les catégories
-  if ("variant" in p) delete p.variant;
-  if (!p.categories && p.goal) p.categories = [p.goal];
-  localStorage.setItem("profile", JSON.stringify(p));
-  return p as UserProfile;
+  if ("variant" in raw) delete raw.variant;
+  if (!raw.categories && raw.goal) raw.categories = [raw.goal];
+  localStorage.setItem("profile", JSON.stringify(raw));
+  return raw as UserProfile;
 }
 
 export function updateProfile(next: UserProfile) {
