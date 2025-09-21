@@ -1,7 +1,7 @@
 import type { Goal } from "@/lib/profile";
 
 export type SeenEntry = { firstSeen: string; correct?: boolean };
-export type SeenMap = Record<Goal, Record<string, SeenEntry>>;
+export type SeenMap = Record<string, Record<string, SeenEntry>>;
 const KEY = "seen:v1";
 
 function load(): SeenMap {
@@ -15,24 +15,22 @@ export function sentenceId(en: string): string {
   return en.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-export function isSeen(goal: Goal, id: string) {
+export function isSeen(goal: string, id: string) {
   const db = load();
   return !!db[goal]?.[id];
 }
-export function isPassed(goal: Goal, id: string) {
+export function isPassed(goal: string, id: string) {
   const db = load();
   return !!db[goal]?.[id]?.correct;
 }
-
-export function markSeen(goal: Goal, id: string, correct: boolean) {
+export function markSeen(goal: string, id: string, correct: boolean) {
   const db = load();
   if (!db[goal]) db[goal] = {};
   if (!db[goal][id]) db[goal][id] = { firstSeen: new Date().toISOString() };
-  if (correct) db[goal][id].correct = true; // on n’écarte définitivement que si elle a réussi
+  if (correct) db[goal][id].correct = true;
   save(db);
 }
-
-export function clearSeen(goal?: Goal) {
+export function clearSeen(goal?: string) {
   if (typeof window === "undefined") return;
   if (!goal) { localStorage.removeItem(KEY); return; }
   const db = load();

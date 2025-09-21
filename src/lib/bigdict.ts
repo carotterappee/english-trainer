@@ -1,4 +1,3 @@
-
 // Dictionnaire FR→RU enrichi (définitions + notes)
 // mapping mot→sens (FR→RU)
 const FR_RU: Record<string, string[]> = {
@@ -44,16 +43,13 @@ const FR_RU: Record<string, string[]> = {
   "taille": ["размер"],
   "plus": ["больше"],
   "grande": ["большой", "большая"],
-  "payer": ["платить"],
+  "payer": ["платить", "заплатить"],
   "carte": ["карта"],
   "ouvrez": ["открываете"],
   "quelle": ["какой", "какая"],
   "heure": ["час", "время"],
   "excusez-moi": ["извините"],
-  "se trouve": ["находится"],
-  "rayon": ["отдел", "полка"],
   "des": ["артикль мн.ч. (нет перевода)"],
-  "fruits": ["фрукты"],
   "bus": ["автобус"],
   "passe": ["проходит"],
   "toutes": ["все"],
@@ -104,7 +100,7 @@ const FR_RU: Record<string, string[]> = {
   "imprime": ["печатаю"],
   "documents": ["документы"],
   "apporte": ["приношу"],
-  // doublons supprimés : "ça", "bonne", "journée", "c’est", "pas", "est-ce que", "peux", "prends", "bien", "nuit", "mange", "soir", "mettre", "la", "besoin", "faire", "lessive", "les", "poubelles", "demain"
+  // doublons supprimés : "ça", "bonne", "journée", "c’est", "pas", "est-ce что", "peux", "prends", "bien", "nuit", "mange", "soir", "mettre", "la", "besoin", "faire", "lessive", "les", "poubelles", "demain"
   "suis": ["я есть (форма être)"],
   "désolé(e)": ["извиняюсь", "жаль"],
   "joyeux": ["счастливый"],
@@ -141,24 +137,22 @@ const FR_RU: Record<string, string[]> = {
   "voulais": ["хотел"],
   "te": ["тебя", "тебе"],
   "déranger": ["мешать"],
-  "pardon": ["извините"],
   "passer": ["пройти"],
   "à": ["к", "в"],
   "bientôt": ["скоро"],
   "soin": ["забота"],
-  "de": ["(предлог de → родительный падеж)"],
   "toi": ["ты", "тебя"],
   "dormi": ["спал"],
   "cette": ["этот", "эта", "это"],
   "on": ["мы", "кто-то"],
   "ce": ["этот", "это"],
   "table": ["стол"],
-  "j’ai": ["у меня есть"],
+  "j'ai": ["у меня есть"], // contraction
+  "de": ["(предлог de → родительный падеж)", "из", "с", "от", "(родительный падеж)"],
+  "par": ["через", "по", "с помощью"],
+  "le": ["(опред. артикль м.р.)"],
   "matin": ["утро"],
   "fermer": ["закрыть"],
-  "fenêtre": ["окно"],
-  "vu": ["видел"],
-  "mes": ["мои"],
   "clés": ["ключи"],
   "télécommande": ["пульт"],
   "où": ["где"],
@@ -172,6 +166,74 @@ const FR_RU: Record<string, string[]> = {
   "faut": ["нужно"],
   // doublon supprimé : "cuisiné"
 };
+
+// Ajouts FR → RU (Vie quotidienne) — manquants
+Object.assign(FR_RU, {
+  "a": ["есть", "имеет"],                      // il/elle a … (avoir)
+  "après": ["после"],
+  "au": ["в", "к"],                            // à + le
+  "boire": ["пить"],
+  "cet": ["этот"],
+  "chez": ["у (кого-то)", "дома"],
+  "cinéma": ["кино", "кинотеатр"],
+  "coûte": ["стоит"],                          // coûter
+  "déjà": ["уже"],
+  "désolé": ["прости", "сожалею"],
+  "désolée": ["прости", "сожалею"],
+  "dîner": ["ужин", "ужинать"],
+  "dit": ["говорит", "говоришь"],              // (ça te dit ? → хочешь?)
+  "ensemble": ["вместе"],
+  "est": ["есть", "находится"],               // être (3e pers.)
+  "et": ["и"],
+  "excuse": ["извини"],
+  "excusez": ["извините"],
+  "fait": ["делает"],                          // faire (форма conjuguée)
+  "faire": ["делать"],
+  "fenêtre": ["окно"],
+  "film": ["фильм"],
+  "froid": ["холодно"],
+  "fruits": ["фрукты"],
+  "14h": ["ч.", "часов"],                      // utile pour « J’ai une réunion à 14h »
+  "h": ["ч.", "часов"],                        // si l’UI isole “h”
+  "la": ["(опред. артикль ж.р.)"],
+  "maison": ["дом", "дома"],
+  "mes": ["мои"],
+  "midi": ["полдень"],
+  "moi": ["я", "мне", "меня"],
+  "mon": ["мой"],
+  "nouvelle": ["новость"],
+  "pardon": ["простите"],
+  "pas": ["не"],
+  "pour": ["для", "чтобы"],
+  "prépare": ["готовлю"],                      // préparer (форма conj.)
+  "préparer": ["готовить"],
+  "quand": ["когда"],
+  "qu’on": ["что мы"],                         // apostrophe courbe
+  "qu'on": ["что мы"],                         // apostrophe droite
+  "que": ["что"],
+  "rayon": ["отдел"],
+  "révise": ["повторяю", "готовлюсь"],
+  "réviser": ["повторять", "готовиться"],
+  "se": ["ся", "себя"],
+  "sur": ["на"],
+  "ton": ["твой"],
+  "travailler": ["работать"],
+  "trouve": ["нахожу"],                        // trouver (форма conj.)
+  "trouver": ["находить", "найти"],
+  "un": ["один (артикль, часто не переводится)"],
+  "va": ["идёт", "пойдём"],                    // aller (3e pers. / impers.)
+  "vais": ["иду"],                             // aller (1re pers.)
+  "venir": ["прийти", "приходить"],
+  "verre": ["стакан", "бокал"],
+  "veux": ["хочешь"],                          // vouloir (2e pers.)
+  "voudrais": ["хотел(а) бы"],                 // je voudrais…
+  "vu": ["видел"],
+  "week-end": ["выходные"],
+  "y": ["там", "есть (в « il y a »)"],
+  "ça": ["это"],
+  "crevé": ["вымотанный", "очень усталый"],
+  "crevée": ["вымотанная", "очень усталая"],
+});
 
 // expressions FR→RU à reconnaître dans la phrase entière
 const PHRASES_FR_RU: Array<{ rx: RegExp; text: string; defs: string[]; note?: string }> = [
@@ -246,7 +308,7 @@ const PHRASES_EN_FR: Array<{ rx: RegExp; text: string; defs: string[]; note?: st
   { rx: /\bout of scope\b/i, text: "out of scope", defs: ["hors périmètre (du sprint/projet)"] },
   { rx: /\bturnaround (time)?\b/i, text: "turnaround (time)", defs: ["délai de traitement", "temps d’exécution"] },
   { rx: /\bhow long\b/i, text: "how long", defs: ["combien de temps"] },
-  { rx: /\bdon'?t worry\b/i, text: "don’t worry", defs: ["ne t’inquiète pas", "t’inquiète"], note: "forme négative : don’t = do not" },
+  { rx: /\bdon'?t worry\b/i, text: "don’t worry", defs: ["не т’inquiète pas", "t’inquiète"], note: "форма négative : don’t = do not" },
   { rx: /\bis this (seat|place) taken\b/i, text: "is this seat taken?", defs: ["cette place est-elle prise ?"], note: "voix passive : ‘is + taken’ = ‘est prise’" },
 ];
 
@@ -284,14 +346,16 @@ function lemmaFr(word: string) {
 
 function uniqTop(arr?: string[], n = 3) { return arr ? Array.from(new Set(arr)).slice(0, n) : undefined; }
 
-/** Traduction locale propre, avec détection d’expression et note grammaticale. 
- *  Passe la phrase source dans `ctxSentence` quand tu peux pour meilleures notes.
+
+/**
+ * Traduction locale propre, avec détection d’expression et note grammaticale.
+ * Passe la phrase source dans `ctxSentence` quand tu peux pour meilleures notes.
  */
 export async function translateWordGeneric(
   token: string,
   src: "en" | "fr",
   tgt: "fr" | "en" | "ru",
-  opts?: { ctxSentence?: string }
+  opts?: { ctxSentence?: string; selectedToken?: string }
 ): Promise<DictResult | null> {
   if (!token) return null;
 
@@ -309,7 +373,6 @@ export async function translateWordGeneric(
 
     // cas pédagogiques
     if (base === "i'd") {
-      // si “i’d like …” → “je voudrais …”
       if (opts?.ctxSentence?.toLowerCase().includes("i'd like")) {
         res.defs = ["je voudrais"];
         res.note = "I’d = I would (souhait poli). ‘I’d like’ = ‘je voudrais’.";
@@ -356,20 +419,34 @@ export async function translateWordGeneric(
 
   // ——— FR -> RU ———
   if (src === "fr" && tgt === "ru") {
+    const base = token.toLowerCase().replace(/’/g, "'");
     const res: DictResult = { defs: [] };
-    if (opts?.ctxSentence) {
+
+    // — détecter les expressions uniquement si le token cliqué en fait partie —
+    if (opts?.ctxSentence && opts?.selectedToken) {
       const s = opts.ctxSentence.toLowerCase();
+      const sel = opts.selectedToken.toLowerCase().replace(/’/g, "'");
       const hit = PHRASES_FR_RU.find(p => p.rx.test(s));
-      if (hit) res.phrase = { text: hit.text, defs: hit.defs, note: hit.note };
+      if (hit) {
+        // expression "s'il te plaît" visible si on clique s'il/te/plaît
+        if (hit.text === "s’il te plaît") {
+          const parts = ["s'il", "s’il", "te", "plaît", "plait"];
+          if (parts.includes(sel)) {
+            res.phrase = { text: hit.text, defs: hit.defs, note: hit.note };
+          }
+        } else {
+          // autres expressions (si tu veux les restreindre pareil, fais un test similaire)
+          // ici, on ne montre rien tant que tu ne le demandes pas.
+        }
+      }
     }
-    const key = token.toLowerCase().replace(/’/g, "'");
-    const base = FR_RU[key] || FR_RU[key.replace(/^l'|^c'/, "")] || FR_RU[key.replace(/s'il/, "s’il")];
-    if (base) res.defs = Array.from(new Set(base)).slice(0, 3);
-    if (key === "à") res.note = "Accent : « à » (préposition) ≠ « a » (verbe avoir).";
+
+    // recherche mot à mot
+    if (FR_RU[base]) res.defs = uniqTop(FR_RU[base]) ?? [];
     return res.defs.length || res.phrase ? res : null;
   }
 
-  // fallback explicite
+  // fallback
   return null;
 }
 export type DictEntry = string[];

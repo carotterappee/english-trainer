@@ -91,3 +91,11 @@ export function wordCount(s: string) {
   const m = (s || "").match(/[p{Letter}’']+/gu);
   return m ? m.length : 0;
 }
+export function setRating(course: string, goal: string, rating: number) {
+  const st = loadLevel(course, goal);
+  st.rating = Math.max(0, Math.min(100, Math.round(rating)));
+  st.level = Math.min(10, Math.max(1, Math.round(st.rating / 10)));
+  st.lastActive = new Date().toISOString();
+  saveLevel(course, goal, st);
+  return st;
+}

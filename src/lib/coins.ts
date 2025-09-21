@@ -20,15 +20,16 @@ export function loadWallet(): Wallet {
 function saveWallet(w: Wallet) {
   localStorage.setItem(KEY, JSON.stringify(w));
 }
-export function addCoins(coins: number, goal: Goal) {
+export function addCoins(coins: number, goal: string) {
   const w = loadWallet();
   w.balance += Math.max(0, Math.floor(coins));
-  w.history.unshift({
-    id: "e_" + Date.now().toString(36),
+  const entry: WalletEntry = {
+    id: crypto.randomUUID(),
     date: new Date().toISOString(),
-    coins: Math.max(0, Math.floor(coins)),
-    goal,
-  });
+    coins,
+    goal: goal as any, // compatibilité
+  };
+  w.history.unshift(entry);
   saveWallet(w);
   return w;
 }

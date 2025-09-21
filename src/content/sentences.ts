@@ -1,36 +1,50 @@
-import frEveryday from "./packs/fr_daily";
-import frExams from "./packs/fr_exams";
+import type { Goal } from "@/lib/profile";
 
-export type FrItem = { fr: string; ru?: string };
-
-export function getSentencesFR(goal: "everyday" | "exams"): FrItem[] {
-  if (goal === "exams") return frExams;     // avec RU exactes
-  return frEveryday;                         // tes phrases de vie quotidienne (RU optionnel)
-}
+// EN → FR
 import enEveryday from "./packs/en_everyday";
 import enTravel   from "./packs/en_travel";
 import enWork     from "./packs/en_work";
 import enExams    from "./packs/en_exams";
+export type EnPair = { en: string; fr: string };
 
-export type Pair = { en: string; fr: string };
+const EN_BY_CAT: Record<Goal, EnPair[]> = {
+  everyday: enEveryday,
+  travel:   enTravel,
+  work:     enWork,
+  exams:    enExams,
+};
 
-export function getSentences(goal: "everyday"|"travel"|"work"|"exams"): Pair[] {
-  // ton ancien stock de base…
-  const base: Pair[] = [
-    // ... (garde ce que tu avais)
-  ];
-  const extra: Record<string, Pair[]> = {
-    everyday: enEveryday,
-    travel: enTravel,
-    work: enWork,
-    exams: enExams,
-  };
-  // merge + dédoublonnage (par texte EN)
-  const all = [...base, ...(extra[goal] || [])];
+export function getSentencesEN(cats: Goal[]): EnPair[] {
   const seen = new Set<string>();
-  return all.filter(p => {
-    const k = p.en.trim().toLowerCase();
-    if (seen.has(k)) return false;
-    seen.add(k); return true;
-  });
+  const out: EnPair[] = [];
+  for (const c of cats) {
+    for (const p of (EN_BY_CAT[c] || [])) {
+      const k = p.en.trim().toLowerCase();
+      if (!seen.has(k)) { seen.add(k); out.push(p); }
+    }
+  }
+  return out;
+}
+
+// FR → RU
+import frEveryday from "./packs/fr_daily";
+import frExams    from "./packs/fr_exams";
+export type FrItem = { fr: string; ru?: string; alts?: string[] };
+
+const FR_BY_CAT: Partial<Record<Goal, FrItem[]>> = {
+  everyday: frEveryday,
+  exams:    frExams,
+  // (travel/work FR si tu les ajoutes plus tard)
+};
+
+export function getSentencesFR(cats: Goal[]): FrItem[] {
+  const seen = new Set<string>();
+  const out: FrItem[] = [];
+  for (const c of cats) {
+    for (const p of (FR_BY_CAT[c] || [])) {
+      const k = p.fr.trim().toLowerCase();
+      if (!seen.has(k)) { seen.add(k); out.push(p); }
+    }
+  }
+  return out;
 }

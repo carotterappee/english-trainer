@@ -6,8 +6,7 @@ import ClickableSentence from "@/components/ClickableSentence";
 import { useRouter } from "next/navigation";
 import { loadProfile } from "@/lib/profile";
 import { loadLevel, recordAnswer, targetWordRange, wordCount } from "@/lib/level";
-import { getSentences } from "@/content/sentences";
-import { getSentencesFR } from "@/content/sentences";
+import { getSentencesEN, getSentencesFR } from "@/content/sentences";
 import { applyVariant } from "@/lib/variant";
 import { translateWordGeneric } from "@/lib/bigdict";
 import type { DictResult } from "@/lib/bigdict";
@@ -18,56 +17,58 @@ import { VARIANT_FLAG, GOAL_LABEL } from "@/lib/profile";
 import { addCoins } from "@/lib/coins";
 import { finalizeSession, clearSession, loadSession, saveSession, secondsLeft, startSession } from "@/lib/session";
 import Timer from "@/components/Timer";
+import { selectedCats, catsKey } from "@/lib/profile";
+import { needsPlacement } from "@/lib/boost";
+// Typage pour les banques de phrases multi-catégories
+import type { EnPair, FrItem } from "@/content/sentences";
 // Typage pour l'accès window custom
 type SessionWindow = Window & { __sessionScore?: number; __sessionMinutes?: number };
 // Valeur par défaut pour la durée d'une session (15 min)
 const SESSION_SECONDS = 900;
 import Coin from "@/components/Coin";
 // Ajoutez ici d'autres imports de composants si besoin
+import type { Goal } from "@/lib/profile";
 
 export default function Mission() {
+  // Hooks d'état et d'effet toujours appelés en premier
   const [last, setLast] = useState<{ ok: boolean; expected: string; user: string; notes?: string[] } | null>(null);
   const router = useRouter();
   const profile = loadProfile();
   // État global pour le nombre d'essais sur la phrase courante
   const [tries, setTries] = useState(0);
-
-
-  // Timer/session state (remplacement)
-  const course = profile?.course ?? "en";
-  const [lvl, setLvl] = useState(() => profile ? loadLevel(course, profile.goal).level : 1);
-  const sess0 = loadSession();
-  const [left, setLeft] = useState<number>(sess0 ? secondsLeft(sess0) : 900);
-  const durationTotal = sess0?.durationSec ?? 900;
-  const [ended, setEnded] = useState<boolean>(false);
+  // Détermine la langue source (EN ou FR)
+  const isEn = profile?.course === "en";
+  // Catégories sélectionnées
+  const cats = profile ? selectedCats(profile) : ["everyday"];
+  // Clé de progression
+  const key  = profile ? catsKey({ ...profile, categories: ["boost"], deviceId: profile.deviceId || "", goal: profile.goal }) : "boost";
+  const wantsBoost = cats.includes("boost");
+  // Niveau actuel (état local)
+  const [lvl, setLvl] = useState((profile as any)?.lvl ?? 1);
+  // Fin de session
+  const [ended, setEnded] = useState(false);
+  // Timer
+  const durationTotal = SESSION_SECONDS;
+  const [left, setLeft] = useState(durationTotal);
   useEffect(() => {
-    if (!sess0) {
-      // si on arrive ici sans session (ex: lien direct), on crée par défaut 15 min
-      if (!profile) return;
-      const s = startSession(profile, 15);
-      setLeft(secondsLeft(s));
+    if (profile && wantsBoost && needsPlacement(profile.course ?? "en", "boost")) {
+      router.replace("/boost-test");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [wantsBoost, profile]);
 
   // Hooks toujours appelés, valeurs par défaut si pas de profil
-  const isEn = (profile?.course ?? "en") === "en";
   type EnFr = { en: string; fr: string };
   type FrRu = { fr: string; ru: string };
-  const bankBase = useMemo<EnFr[] | FrRu[]>(
+  const bankBase = useMemo<EnPair[] | FrItem[]>(
     () => {
       if (!profile) return [];
-      if (isEn) return getSentences(profile.goal) as EnFr[];
-      // Pour FR, ne charge que si goal est 'everyday' ou 'exams'
-      if (profile.goal === "everyday" || profile.goal === "exams") {
-        return getSentencesFR(profile.goal) as FrRu[];
-      }
-      return [];
+      return isEn ? getSentencesEN(cats as Goal[]) : getSentencesFR(cats as Goal[]);
     },
-    [isEn, profile?.goal]
+    [profile, isEn, cats]
   );
-  const bank = useMemo<EnFr[] | FrRu[]>(
-    () => (profile ? (isEn ? (bankBase as EnFr[]).map((s) => ({ en: applyVariant(s.en, profile.variant), fr: s.fr })) : bankBase) : []),
+  const bank = useMemo<EnPair[] | FrItem[]>(
+    () => (profile ? (isEn ? (bankBase as EnPair[]).map((s) => ({ en: applyVariant(s.en, profile.variant), fr: s.fr })) : bankBase) : []),
     [bankBase, isEn, profile]
   );
   const idsBase = useMemo<string[]>(
@@ -153,14 +154,14 @@ export default function Mission() {
     if (!profile) return null;
     const candidates = idsBase
       .map((_, i) => i)
-      .filter(i => !isPassed(profile.goal, idsBase[i]));
+      .filter(i => !isPassed(key, idsBase[i]));
     if (!candidates.length) return null;
 
     const { min, max } = targetWordRange(lvl);
     const mid = (min + max) / 2;
     const lengthOf = (i: number) => {
       const s = bankBase[i];
-      if (course === "en" && 'en' in s) return wordCount(s.en);
+      if ((profile?.course ?? "en") === "en" && 'en' in s) return wordCount(s.en);
       if ('fr' in s) return wordCount(s.fr);
       return 0;
     };
@@ -178,67 +179,104 @@ export default function Mission() {
   }
 
   function check() {
-  const attempt = tries + 1;
-  // Mode FR : si pas de traduction RU fournie, on accepte toute réponse non vide
-  if (!isEn && (!expected || expected.trim() === "")) {
-      const ok = (answerFr || "").trim().length > 0;
-      setLast({ ok, expected: "(réponse libre)", user: answerFr });
+    const attempt = tries + 1;
+    // Mode FR : gestion de la vérification de la réponse russe
+    if (!isEn) {
+      const alts: string[] = (current && 'alts' in current && Array.isArray((current as any).alts)) ? (current as any).alts : [];
+      if (!expected || expected.trim() === "") {
+        // Si pas de traduction RU fournie, accepte toute réponse non vide
+        const ok = (answerFr || "").trim().length > 0;
+        setLast({ ok, expected: "(réponse libre)", user: answerFr });
+        if (ok) {
+          if (profile) addCoins(5, key);
+          setCoinPop(true);
+          setTimeout(() => setCoinPop(false), 1200);
+          const s = loadSession(); if (s) { s.coins += 5; s.attempts += 1; s.correct += 1; saveSession(s); }
+          if (profile) {
+            const st = recordAnswer({ ...profile, goal: key as any }, { ok: true, tries: attempt });
+            setLvl(st.level);
+          }
+          setFeedback("ok");
+          setTimeout(() => {
+            setLast(null);
+            setFeedback("idle");
+            next();
+          }, 1200);
+        } else {
+          setFeedback("ko");
+          const s = loadSession(); if (s) { s.attempts += 1; saveSession(s); }
+        }
+        return;
+      } else {
+        // Si une traduction RU attendue existe, vérifie avec toutes les variantes
+        const ok = [expected, ...alts].some(v => answersEqual(answerFr, v));
+        setTries(attempt);
+        if (ok) {
+          if (profile) addCoins(5, key);
+          setCoinPop(true);
+          setTimeout(() => setCoinPop(false), 1200);
+          const s = loadSession();
+          if (s) { s.coins += 5; s.attempts += 1; s.correct += 1; saveSession(s); }
+          if (profile) {
+            const st = recordAnswer({ ...profile, goal: key as any }, { ok: true, tries: attempt });
+            setLvl(st.level);
+          }
+          setLast({ ok: true, expected: expected, user: answerFr });
+          setFeedback("ok");
+          setTimeout(() => {
+            setLast(null);
+            setFeedback("idle");
+            next();
+          }, 1200);
+          return;
+        } else {
+          setLast({ ok: false, expected: expected, user: answerFr });
+          setFeedback("ko");
+          const s = loadSession();
+          if (s) { s.attempts += 1; saveSession(s); }
+          if (profile) {
+            const st = recordAnswer({ ...profile, goal: key as any }, { ok: false, tries: attempt });
+            setLvl(st.level);
+          }
+          return;
+        }
+      }
+    }
+    if (!current || !profile) return;
+      if (!normalizeAnswer(answerFr)) {
+        setLast({ ok: false, expected: expText, user: answerFr });
+        setFeedback("ko");
+        return;
+      }
+      const ok = answersEqual(answerFr, expText);
+      setTries(attempt);
       if (ok) {
-        if (profile) addCoins(5, profile.goal);
+  addCoins(5, key);
         setCoinPop(true);
         setTimeout(() => setCoinPop(false), 1200);
-        const s = loadSession(); if (s) { s.coins += 5; s.attempts += 1; s.correct += 1; saveSession(s); }
-        if (profile) {
-          const st = recordAnswer(profile, { ok: true, tries: attempt });
-          setLvl(st.level);
-        }
+        const s = loadSession();
+        if (s) { s.coins += 5; s.attempts += 1; s.correct += 1; saveSession(s); }
+  const st = recordAnswer({ ...profile, goal: key as any }, { ok: true, tries: attempt });
+        setLvl(st.level);
+        setLast({ ok: true, expected: expText, user: answerFr });
         setFeedback("ok");
+        // Passage à la phrase suivante après un court délai pour laisser voir le feedback
         setTimeout(() => {
           setLast(null);
           setFeedback("idle");
           next();
         }, 1200);
+        return;
       } else {
+        const notes = isEn ? frenchHints(expText, answerFr) : [];
+        setLast({ ok: false, expected: expText, user: answerFr, notes });
         setFeedback("ko");
-        const s = loadSession(); if (s) { s.attempts += 1; saveSession(s); }
+        const s = loadSession();
+        if (s) { s.attempts += 1; saveSession(s); }
+  const st = recordAnswer({ ...profile, goal: key as any }, { ok: false, tries: attempt });
+        setLvl(st.level);
+        // on reste sur la même phrase, avec boutons Réessayer / Phrase suivante
       }
-      return;
-    }
-  if (!current || !profile) return;
-    if (!normalizeAnswer(answerFr)) {
-      setLast({ ok: false, expected: expText, user: answerFr });
-      setFeedback("ko");
-      return;
-    }
-    const ok = answersEqual(answerFr, expText);
-    setTries(attempt);
-    if (ok) {
-      addCoins(5, profile.goal);
-      setCoinPop(true);
-      setTimeout(() => setCoinPop(false), 1200);
-      const s = loadSession();
-      if (s) { s.coins += 5; s.attempts += 1; s.correct += 1; saveSession(s); }
-      const st = recordAnswer(profile, { ok: true, tries: attempt });
-      setLvl(st.level);
-      setLast({ ok: true, expected: expText, user: answerFr });
-      setFeedback("ok");
-      // Passage à la phrase suivante après un court délai pour laisser voir le feedback
-      setTimeout(() => {
-        setLast(null);
-        setFeedback("idle");
-        next();
-      }, 1200);
-      return;
-    } else {
-      const notes = isEn ? frenchHints(expText, answerFr) : [];
-      setLast({ ok: false, expected: expText, user: answerFr, notes });
-      setFeedback("ko");
-      const s = loadSession();
-      if (s) { s.attempts += 1; saveSession(s); }
-      const st = recordAnswer(profile, { ok: false, tries: attempt });
-      setLvl(st.level);
-      // on reste sur la même phrase, avec boutons Réessayer / Phrase suivante
-    }
   }
 
   function next() {
@@ -251,8 +289,8 @@ export default function Mission() {
     setTries(0);
   }
   function finishSession() {
-  setEnded(true);
-  addCoins(sessionCoins, profile!.goal);
+    setEnded(true);
+  addCoins(sessionCoins, key);
   }
 
   // Gestion “plus de nouvelles phrases”
@@ -264,8 +302,17 @@ export default function Mission() {
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold">Mission du jour</h1>
           <span className="ml-auto text-sm rounded-full px-3 py-1 bg-indigo-100 text-indigo-800">
-            {VARIANT_FLAG[profile.variant]} {GOAL_LABEL[profile.goal]}
+            {VARIANT_FLAG[profile.variant]} {key}
           </span>
+        </div>
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {cats.map(c => (
+            <span key={c} className="text-xs rounded-full bg-indigo-50 border border-indigo-200 px-2 py-0.5">
+              {c === "everyday" ? "Vie quotidienne" :
+               c === "travel"   ? "Voyage" :
+               c === "work"     ? "Travail" : "Examens"}
+            </span>
+          ))}
         </div>
 
         <div className="p-6 rounded-3xl border bg-white space-y-4">
@@ -278,7 +325,7 @@ export default function Mission() {
               Changer de thème
             </button>
             <button
-              onClick={() => { import("@/lib/seenStore").then(m => m.clearSeen(profile.goal)); location.reload(); }}
+              onClick={() => { import("@/lib/seenStore").then(m => m.clearSeen(key)); location.reload(); }}
               className="rounded-2xl bg-indigo-600 text-white py-2"
             >
               Rejouer ce thème (réinitialiser)
@@ -294,11 +341,17 @@ export default function Mission() {
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-semibold">Mission du jour</h1>
         <span className="ml-auto text-sm rounded-full px-3 py-1 bg-indigo-100 text-indigo-800">
-          {VARIANT_FLAG[profile.variant]} {GOAL_LABEL[profile.goal]}
+          {VARIANT_FLAG[profile.variant]} {key}
         </span>
-        {/* <span className="ml-2 text-sm rounded-full px-3 py-1 bg-amber-100 text-amber-800">
-          Niveau {lvl}
-        </span> */}
+      </div>
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {cats.map(c => (
+          <span key={c} className="text-xs rounded-full bg-indigo-50 border border-indigo-200 px-2 py-0.5">
+            {c === "everyday" ? "Vie quotidienne" :
+             c === "travel"   ? "Voyage" :
+             c === "work"     ? "Travail" : "Examens"}
+          </span>
+        ))}
       </div>
 
       {/* En-tête : timer + pièces */}

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import PrettySelect from "@/components/PrettySelect";
 import { saveProfile, loadProfile, hasProfile,
-         type EnglishVariant, type Goal } from "@/lib/profile";
+         type EnglishVariant, type Goal, type UserProfile } from "@/lib/profile";
 
 export default function SelectProfileModal({
   open, onClose, onDone,
@@ -12,7 +12,15 @@ export default function SelectProfileModal({
   const [course, setCourse] = useState<"en"|"fr">(existing?.course ?? "en");
   const [answerLang, setAnswerLang] = useState<"fr"|"ru">(existing?.answerLang ?? "fr");
   const [variant, setVariant] = useState<EnglishVariant>(existing?.variant ?? "british");
-  const [goal, setGoal] = useState<Goal>(existing?.goal ?? "everyday");
+  // Sélection multiple de catégories (checkboxes)
+  const ALL_CATS: Goal[] = ["everyday", "travel", "work", "exams"];
+  const [cats, setCats] = useState<Goal[]>(
+    () => existing?.categories?.length ? existing.categories : (existing?.goal ? [existing.goal] : ["everyday"])
+  );
+
+  function toggleCat(g: Goal) {
+    setCats(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g]);
+  }
 
   useEffect(() => {
     // si on change de cours vers FR, forcer answerLang visible
@@ -26,12 +34,14 @@ export default function SelectProfileModal({
       deviceId: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
     };
+    const uniqueSorted = Array.from(new Set(cats)).sort();
     saveProfile({
       ...base,
       course,
       answerLang,
       variant,
-      goal,
+      categories: uniqueSorted,
+      // on peut ignorer goal désormais
     });
     onClose();
     onDone();
@@ -85,18 +95,27 @@ export default function SelectProfileModal({
             />
           )}
 
-          <PrettySelect
-            id="goal"
-            label="Objectif"
-            value={goal}
-            onChange={(v) => setGoal(v as Goal)}
-            options={[
-              { value: "everyday", label: "Vie quotidienne", emoji: "🏠" },
-              { value: "travel", label: "Voyage", emoji: "🧳" },
-              { value: "work", label: "Travail", emoji: "💼" },
-              { value: "exams", label: "Examens", emoji: "📝" },
-            ]}
-          />
+          <div className="space-y-2">
+            <div className="text-sm font-medium mb-1">Catégories</div>
+            <div className="grid grid-cols-2 gap-2">
+              {ALL_CATS.map(g => (
+                <label key={g} className={`cursor-pointer rounded-xl border px-3 py-2 flex items-center gap-2
+                   ${cats.includes(g) ? "bg-indigo-50 border-indigo-300" : "bg-white"}`}>
+                  <input
+                    type="checkbox"
+                    className="accent-indigo-600"
+                    checked={cats.includes(g)}
+                    onChange={() => toggleCat(g)}
+                  />
+                  <span className="capitalize">
+                    {g === "everyday" ? "Vie quotidienne" :
+                     g === "travel"   ? "Voyage" :
+                     g === "work"     ? "Travail" : "Examens"}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="flex gap-3 pt-2">

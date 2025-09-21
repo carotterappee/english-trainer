@@ -35,6 +35,7 @@ export const GOAL_LABEL: Record<Goal, string> = {
   travel: "Voyage",
   work: "Travail",
   exams: "Examens",
+  boost: "Boost",
 };
 
 export function updateProfile(patch: Partial<Pick<UserProfile, "variant" | "goal">>) {
@@ -45,31 +46,34 @@ export function updateProfile(patch: Partial<Pick<UserProfile, "variant" | "goal
   return next;
 }
 export type EnglishVariant = "british" | "american";
-export type Goal =
-  | "everyday"   // vie de tous les jours
-  | "travel"
-  | "work"
-  | "exams";
+export type Goal = "everyday" | "travel" | "work" | "exams" | "boost";
 
 export type UserProfile = {
   deviceId: string;
   variant: EnglishVariant;
-  goal: Goal;
+  // legacy (pour compat)
+  goal?: Goal;
   createdAt: string; // ISO
   avatar?: AvatarConfig;
-  // ⬇️ nouveaux champs
-  course?: Course;         // défaut: "en"
-  answerLang?: AnswerLang; // défaut: "fr"
+  course?: "en" | "fr";          // langue qu’on apprend
+  answerLang?: "fr" | "ru";      // langue de réponse
+  // NEW
+  categories?: Goal[];           // plusieurs catégories
+  // ... autres champs éventuels ...
 };
-// migration douce (à appeler au démarrage)
-export function ensureProfileDefaults() {
-  const p = loadProfile();
-  if (!p) return;
-  let changed = false;
-  if (!p.course) { p.course = "en"; changed = true; }
-  if (!p.answerLang) { p.answerLang = "fr"; changed = true; }
-  if (changed) saveProfile(p);
+
+// Utilitaire : obtenir la liste sélectionnée (fallback sur l'ancien goal)
+export function selectedCats(p: UserProfile): Goal[] {
+  if (p.categories && p.categories.length) return Array.from(new Set(p.categories));
+  return p.goal ? [p.goal] : ["everyday"];
 }
+
+// Clé stable pour les stats/niveau quand plusieurs catégories sont cochées
+export function catsKey(p: UserProfile): string {
+  const cats = selectedCats(p).slice().sort(); // ordre stable
+  return cats.join("+");                        // ex: "everyday+work"
+}
+
 export function updateAvatar(patch: Partial<AvatarConfig>) {
   const cur = loadProfile();
   if (!cur) return null;
@@ -112,4 +116,14 @@ export function createProfile(variant: EnglishVariant, goal: Goal) {
   };
   saveProfile(profile);
   return profile;
+}
+
+// migration douce (à appeler au démarrage)
+export function ensureProfileDefaults() {
+  const p = loadProfile();
+  if (!p) return;
+  let changed = false;
+  if (!p.course) { p.course = "en"; changed = true; }
+  if (!p.answerLang) { p.answerLang = "fr"; changed = true; }
+  if (changed) saveProfile(p);
 }
