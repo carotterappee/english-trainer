@@ -68,7 +68,7 @@ export default function Home() {
 
 
 
-      <SelectProfileModal open={profileModal} onClose={() => setProfileModal(false)} onDone={() => setDurationModal(true)} />
+  <SelectProfileModal onClose={() => setProfileModal(false)} />
       <SelectDurationModal open={durationModal} onClose={() => setDurationModal(false)} onStart={startWithDuration} />
     </main>
   );
