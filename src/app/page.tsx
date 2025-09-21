@@ -50,9 +50,11 @@ export default function Home() {
           {active ? "▶️ Continuer la mission" : "🚀 Commencer (choisir durée)"}
         </button>
 
-        <button onClick={() => setOpenCats(true)} className="block mx-auto mt-2 text-2xl" title="Réglages">
-          ⚙️
-        </button>
+        {false && (
+          <button onClick={() => setOpenCats(true)} className="block mx-auto mt-2 text-2xl" title="Réglages">
+            ⚙️
+          </button>
+        )}
 
         <div className="grid grid-cols-3 gap-3">
           <Link href="/progress"   className="text-center rounded-2xl border py-2 hover:bg-indigo-50 transition">📈 Progression</Link>
