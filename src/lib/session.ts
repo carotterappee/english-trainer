@@ -34,14 +34,15 @@ export function clearSession() {
 
 export function startSession(profile: UserProfile, durationMin: number) {
   const course = profile.course ?? "en";
-  const levelStart = loadLevel(course, profile.goal).level; // 👈 capture le niveau au début
+  const goal = profile.goal ?? "everyday";
+  const levelStart = loadLevel(course, goal).level; // 👈 capture le niveau au début
   const s: Session = {
     startedAt: new Date().toISOString(),
     durationSec: Math.max(300, durationMin * 60),
     course,
     answerLang: profile.answerLang ?? "fr",
     variant: profile.variant,
-    goal: profile.goal,
+    goal,
     coins: 0,
     attempts: 0,
     correct: 0,
@@ -66,7 +67,7 @@ export function finalizeSession(levelEnd?: number): ProgressEntry | null {
     correct: s.correct,
     coins: s.coins,
     course: s.course,
-    goal: s.goal,
+    goal: s.goal ?? "everyday",
     levelStart: s.levelStart,
     levelEnd,
   };

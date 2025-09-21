@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import { answersEqual, normalizeAnswer } from "@/lib/textUtils";
 import { selectedCats, catsKey } from "@/lib/profile";
 import { loadProfile } from "@/lib/profile";
-import testEn from "@/content/boost_test_en";
-import testFr from "@/content/boost_test_fr";
+import testEn, { BoostItemEN } from "@/content/boost_test_en";
+import testFr, { BoostItemFR } from "@/content/boost_test_fr";
 import { computePlacement, savePlacement } from "@/lib/boost";
 
 export default function BoostTestPage() {
@@ -15,7 +15,7 @@ export default function BoostTestPage() {
   const course = (profile?.course ?? "en") as "en"|"fr";
   const cats = ["boost"];
   const key = "boost";
-  const items = course === "en" ? testEn : testFr;
+  const items: (BoostItemEN | BoostItemFR)[] = course === "en" ? testEn : testFr;
   const [i, setI] = useState(0);
   const [input, setInput] = useState("");
   const [tries, setTries] = useState(0);
@@ -26,9 +26,11 @@ export default function BoostTestPage() {
   // Après tous les hooks, on peut faire le return conditionnel
   if (!profile) return null;
 
-  const current = items[i];
-  const expected = course === "en" ? (current as any).fr : (current as any).ru;
-  const alts = (current as any).alts || [];
+  const current = items[i] as BoostItemEN | BoostItemFR;
+  const expected = course === "en"
+    ? (current as BoostItemEN).fr
+    : (current as BoostItemFR).ru;
+  const alts = ("alts" in current && Array.isArray(current.alts)) ? current.alts : [];
 
   const check = () => {
     const ok = [expected, ...alts].some(v => answersEqual(input, v));
@@ -74,7 +76,9 @@ export default function BoostTestPage() {
       <div className="rounded-2xl border bg-white p-4 space-y-3">
         <div className="text-xs text-gray-500">Item {i+1}/{items.length}</div>
         <div className="text-lg font-medium">
-          {course === "en" ? (current as any).en : (current as any).fr}
+          {course === "en"
+            ? (current as BoostItemEN).en
+            : (current as BoostItemFR).fr}
         </div>
         <input
           className="w-full rounded-xl border px-3 py-2"

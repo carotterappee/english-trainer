@@ -12,6 +12,7 @@ const EN_BY_CAT: Record<Goal, EnPair[]> = {
   travel:   enTravel,
   work:     enWork,
   exams:    enExams,
+  boost: [],
 };
 
 export function getSentencesEN(cats: Goal[]): EnPair[] {

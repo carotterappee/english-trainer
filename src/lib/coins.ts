@@ -27,7 +27,7 @@ export function addCoins(coins: number, goal: string) {
     id: crypto.randomUUID(),
     date: new Date().toISOString(),
     coins,
-    goal: goal as any, // compatibilité
+    goal: goal as unknown as import("@/lib/profile").Goal, // typage strict
   };
   w.history.unshift(entry);
   saveWallet(w);

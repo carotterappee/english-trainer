@@ -42,7 +42,7 @@ export function recordAnswer(
   opt: { ok: boolean; tries: number }
 ): LevelState {
   const course = profile.course ?? "en";
-  const goal = profile.goal;
+  const goal = profile.goal ?? "everyday";
   const st = loadLevel(course, goal);
 
   // met à jour la fenêtre glissante

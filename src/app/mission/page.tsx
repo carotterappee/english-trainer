@@ -44,7 +44,17 @@ export default function Mission() {
   const key  = profile ? catsKey({ ...profile, categories: ["boost"], deviceId: profile.deviceId || "", goal: profile.goal }) : "boost";
   const wantsBoost = cats.includes("boost");
   // Niveau actuel (état local)
-  const [lvl, setLvl] = useState((profile as any)?.lvl ?? 1);
+  // Initialise le niveau à partir du store, ou 1 si profil absent
+  const [lvl, setLvl] = useState(() => {
+    if (profile && profile.course && profile.goal) {
+      try {
+        return loadLevel(profile.course, profile.goal).level;
+      } catch {
+        return 1;
+      }
+    }
+    return 1;
+  });
   // Fin de session
   const [ended, setEnded] = useState(false);
   // Timer
@@ -182,7 +192,7 @@ export default function Mission() {
     const attempt = tries + 1;
     // Mode FR : gestion de la vérification de la réponse russe
     if (!isEn) {
-      const alts: string[] = (current && 'alts' in current && Array.isArray((current as any).alts)) ? (current as any).alts : [];
+  const alts: string[] = (current && 'alts' in current && Array.isArray((current as FrItem).alts)) ? (current as FrItem).alts! : [];
       if (!expected || expected.trim() === "") {
         // Si pas de traduction RU fournie, accepte toute réponse non vide
         const ok = (answerFr || "").trim().length > 0;
@@ -193,7 +203,7 @@ export default function Mission() {
           setTimeout(() => setCoinPop(false), 1200);
           const s = loadSession(); if (s) { s.coins += 5; s.attempts += 1; s.correct += 1; saveSession(s); }
           if (profile) {
-            const st = recordAnswer({ ...profile, goal: key as any }, { ok: true, tries: attempt });
+            const st = recordAnswer({ ...profile, goal: profile.goal }, { ok: true, tries: attempt });
             setLvl(st.level);
           }
           setFeedback("ok");
@@ -218,7 +228,7 @@ export default function Mission() {
           const s = loadSession();
           if (s) { s.coins += 5; s.attempts += 1; s.correct += 1; saveSession(s); }
           if (profile) {
-            const st = recordAnswer({ ...profile, goal: key as any }, { ok: true, tries: attempt });
+            const st = recordAnswer({ ...profile, goal: profile.goal }, { ok: true, tries: attempt });
             setLvl(st.level);
           }
           setLast({ ok: true, expected: expected, user: answerFr });
@@ -235,7 +245,7 @@ export default function Mission() {
           const s = loadSession();
           if (s) { s.attempts += 1; saveSession(s); }
           if (profile) {
-            const st = recordAnswer({ ...profile, goal: key as any }, { ok: false, tries: attempt });
+            const st = recordAnswer({ ...profile, goal: profile.goal }, { ok: false, tries: attempt });
             setLvl(st.level);
           }
           return;
@@ -256,7 +266,7 @@ export default function Mission() {
         setTimeout(() => setCoinPop(false), 1200);
         const s = loadSession();
         if (s) { s.coins += 5; s.attempts += 1; s.correct += 1; saveSession(s); }
-  const st = recordAnswer({ ...profile, goal: key as any }, { ok: true, tries: attempt });
+  const st = recordAnswer({ ...profile, goal: profile.goal }, { ok: true, tries: attempt });
         setLvl(st.level);
         setLast({ ok: true, expected: expText, user: answerFr });
         setFeedback("ok");
@@ -273,7 +283,7 @@ export default function Mission() {
         setFeedback("ko");
         const s = loadSession();
         if (s) { s.attempts += 1; saveSession(s); }
-  const st = recordAnswer({ ...profile, goal: key as any }, { ok: false, tries: attempt });
+  const st = recordAnswer({ ...profile, goal: profile.goal }, { ok: false, tries: attempt });
         setLvl(st.level);
         // on reste sur la même phrase, avec boutons Réessayer / Phrase suivante
       }

@@ -16,6 +16,7 @@ export const lessonsByGoal: Record<Goal, Lesson[]> = {
   travel: [travel01],
   work: [travel01],
   exams: [travel01],
+  boost: [],
 };
 
 export function pickLesson(goal: Goal): Lesson {
