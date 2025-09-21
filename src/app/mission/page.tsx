@@ -97,8 +97,9 @@ export default function Mission() {
     tokens = current.en.split(" ");
   } else if (!isEn && current && 'fr' in current) {
     srcText = current.fr;
-    expText = (current as any).ru ?? "";
-    expected = (current as any).ru;
+    // current est FrRu | undefined
+    expText = (current as { fr: string; ru?: string }).ru ?? "";
+    expected = (current as { fr: string; ru?: string }).ru;
     tokens = current.fr.split(" ");
   }
   const phraseAffichee = displayFriendly(srcText);
@@ -137,9 +138,9 @@ export default function Mission() {
   useEffect(() => {
     let alive = true;
     if (!selected) { setDict(null); return; }
-    const src = isEn ? "en" : "fr";
-    const tgt = isEn ? "fr" : "ru";
-    translateWordGeneric(selected, src as any, tgt as any, { ctxSentence: srcText })
+    const src: "en" | "fr" = isEn ? "en" : "fr";
+    const tgt: "fr" | "ru" = isEn ? "fr" : "ru";
+    translateWordGeneric(selected, src, tgt, { ctxSentence: srcText })
       .then((res) => { if (alive) setDict(res); });
     return () => { alive = false; };
   }, [selected, isEn, srcText]);
