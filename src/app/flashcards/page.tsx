@@ -3,40 +3,52 @@
 import { useState } from "react";
 import { loadProfile } from "@/lib/profile";
 import { getDueWords, reviewWord } from "@/lib/wordStore";
-import Coin from "@/components/Coin";
 import { addCoins } from "@/lib/coins";
+import Coin from "@/components/Coin";
+
+type Card = {
+  id: string;
+  // divers champs possibles selon la source
+  front?: string;
+  back?: string;
+  word?: string;
+  head?: string;
+  en?: string;
+  fr?: string;
+  ru?: string;
+  translation?: string;
+  def?: string;
+};
 
 export default function Flashcards() {
+  // on charge le profil mais on ne quitte pas le rendu si null
   const profile = loadProfile();
-  if (!profile) return null;
 
-  // file d’attente des mots à réviser
-  const [queue, setQueue] = useState(() => getDueWords());
+  // file d’attente des mots à réviser (typés)
+  const [queue, setQueue] = useState<Card[]>(() => getDueWords() as Card[]);
   const [i, setI] = useState(0);
   const [showBack, setShowBack] = useState(false);
   const [justAwarded, setJustAwarded] = useState(0);
 
   const done = i >= queue.length;
-  const current = done ? null : queue[i];
+  const current: Card | undefined = done ? undefined : queue[i];
 
-  // Helpers d’affichage (tolérants aux différents schémas stockés)
-  const frontText = current
-    ? (current as any).front ??
-      (current as any).word ??
-      (current as any).head ??
-      (current as any).en ??
-      (current as any).fr ??
-      ""
-    : "";
+  // Récupération tolérante des champs texte
+  const frontText =
+    current?.front ??
+    current?.word ??
+    current?.head ??
+    current?.en ??
+    current?.fr ??
+    "";
 
-  const backText = current
-    ? (current as any).back ??
-      (current as any).translation ??
-      (current as any).ru ??
-      (current as any).fr ??
-      (current as any).def ??
-      ""
-    : "";
+  const backText =
+    current?.back ??
+    current?.translation ??
+    current?.ru ??
+    current?.fr ??
+    current?.def ??
+    "";
 
   const next = () => {
     setShowBack(false);
@@ -46,11 +58,10 @@ export default function Flashcards() {
 
   const onKnow = () => {
     if (!current) return;
-    // marquer comme su et récompenser
     try {
-      reviewWord((current as any).id, true);
+      reviewWord(current.id, true);
     } catch {
-      // si l’implémentation ne prend pas (id, boolean), on ignore silencieusement
+      // tolérant si la signature diffère, on ignore l'erreur
     }
     addCoins(3);
     setJustAwarded(3);
@@ -60,9 +71,9 @@ export default function Flashcards() {
   const onDontKnow = () => {
     if (!current) return;
     try {
-      reviewWord((current as any).id, false);
+      reviewWord(current.id, false);
     } catch {
-      // idem : tolérant selon la signature réelle
+      // tolérant
     }
     next();
   };
@@ -70,7 +81,7 @@ export default function Flashcards() {
   const onFlip = () => setShowBack((v) => !v);
 
   const onReload = () => {
-    const fresh = getDueWords();
+    const fresh = getDueWords() as Card[];
     setQueue(fresh);
     setI(0);
     setShowBack(false);
