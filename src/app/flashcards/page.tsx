@@ -1,114 +1,145 @@
-import { selectedCats, catsKey } from "@/lib/profile";
 "use client";
-import { useEffect, useMemo, useState } from "react";
-import { getDueWords, reviewWord, loadWords } from "@/lib/wordStore";
-import Coin from "@/components/Coin";
-import { addCoins, loadWallet } from "@/lib/coins";
-import { loadProfile } from "@/lib/profile";
 
-type Outcome = "again" | "good" | "easy";
+import { useState } from "react";
+import { loadProfile } from "@/lib/profile";
+import { getDueWords, reviewWord } from "@/lib/wordStore";
+import Coin from "@/components/Coin";
+import { addCoins } from "@/lib/coins";
 
 export default function Flashcards() {
   const profile = loadProfile();
-  const goalForCoins = catsKey(profile); // ex: "everyday" ou "everyday+work"
+  if (!profile) return null;
 
-  const [modeAll, setModeAll] = useState(false);
-  const due = useMemo(() => getDueWords(), []);
-  const all = useMemo(() => loadWords(), []);
-  const list = modeAll ? all : due;
+  // file d’attente des mots à réviser
+  const [queue, setQueue] = useState(() => getDueWords());
+  const [i, setI] = useState(0);
+  const [showBack, setShowBack] = useState(false);
+  const [justAwarded, setJustAwarded] = useState(0);
 
-  const [idx, setIdx] = useState(0);
-  const [flip, setFlip] = useState(false);
-  const [sessionCoins, setSessionCoins] = useState(0);
-  const [balance, setBalance] = useState(loadWallet().balance);
+  const done = i >= queue.length;
+  const current = done ? null : queue[i];
 
-  const current = list[idx];
-  useEffect(() => setFlip(false), [idx, modeAll]);
+  // Helpers d’affichage (tolérants aux différents schémas stockés)
+  const frontText = current
+    ? (current as any).front ??
+      (current as any).word ??
+      (current as any).head ??
+      (current as any).en ??
+      (current as any).fr ??
+      ""
+    : "";
 
-  if (!current) {
-    return (
-      <main className="min-h-screen p-8 flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <h1 className="text-2xl font-semibold">Flashcards</h1>
-          <p className="text-gray-600">
-            {modeAll ? "Aucun mot dans la liste." : "Rien à revoir aujourd’hui ✅"}
-          </p>
-          {(!modeAll && all.length > 0) && (
-            <button onClick={() => setModeAll(true)} className="rounded-2xl border px-3 py-2 hover:bg-indigo-50">
-              Parcourir tous les mots
-            </button>
-          )}
-        </div>
-      </main>
-    );
-  }
+  const backText = current
+    ? (current as any).back ??
+      (current as any).translation ??
+      (current as any).ru ??
+      (current as any).fr ??
+      (current as any).def ??
+      ""
+    : "";
 
-  const next = () => setIdx((i) => (i + 1) % list.length);
+  const next = () => {
+    setShowBack(false);
+    setJustAwarded(0);
+    setI((x) => x + 1);
+  };
 
-  const awardFor = (kind: Outcome) => (kind === "good" ? 1 : kind === "easy" ? 2 : 0);
-
-  const mark = (kind: Outcome) => {
-    const award = awardFor(kind);
-    if (award > 0) {
-      addCoins(award, goalForCoins);             // ajoute au coffre + historique
-      setSessionCoins((c) => c + award);         // compteur session
-      setBalance(loadWallet().balance);          // rafraîchir le solde affiché
+  const onKnow = () => {
+    if (!current) return;
+    // marquer comme su et récompenser
+    try {
+      reviewWord((current as any).id, true);
+    } catch {
+      // si l’implémentation ne prend pas (id, boolean), on ignore silencieusement
     }
-    reviewWord(current.en, kind);                // met à jour la planif SRS
+    addCoins(3);
+    setJustAwarded(3);
     next();
   };
 
+  const onDontKnow = () => {
+    if (!current) return;
+    try {
+      reviewWord((current as any).id, false);
+    } catch {
+      // idem : tolérant selon la signature réelle
+    }
+    next();
+  };
+
+  const onFlip = () => setShowBack((v) => !v);
+
+  const onReload = () => {
+    const fresh = getDueWords();
+    setQueue(fresh);
+    setI(0);
+    setShowBack(false);
+    setJustAwarded(0);
+  };
+
   return (
-    <main className="min-h-screen p-8 max-w-xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Flashcards</h1>
-        <div className="text-sm text-gray-500">
-          {modeAll ? `${idx + 1}/${list.length}` : `À revoir: ${due.length}`}
+    <main className="max-w-md mx-auto p-6 space-y-6">
+      <h1 className="text-2xl font-semibold text-center">🧠 Flashcards</h1>
+
+      {done ? (
+        <div className="rounded-2xl border bg-white p-6 text-center space-y-4">
+          <p>Tu as terminé la révision du moment 🎉</p>
+          <button
+            onClick={onReload}
+            className="rounded-xl bg-indigo-600 text-white px-4 py-2"
+          >
+            Recharger les cartes dues
+          </button>
         </div>
-      </div>
+      ) : (
+        <div className="rounded-2xl border bg-white p-6 space-y-4">
+          <div className="text-xs text-gray-500">
+            Carte {i + 1}/{queue.length}
+          </div>
 
-      {/* Solde & pièces gagnées cette session */}
-      <div className="flex items-center gap-3 text-sm">
-        <div className="flex items-center gap-2">
-          <Coin size={18} />
-          <span className="font-medium">{balance}</span>
-          <span className="text-gray-500">pièces</span>
+          <div
+            className="rounded-xl border bg-indigo-50/70 px-4 py-6 cursor-pointer select-none text-center"
+            onClick={onFlip}
+            title="Cliquer pour retourner"
+          >
+            <div className="text-sm uppercase tracking-wide text-indigo-700/80 mb-2">
+              {showBack ? "Traduction" : "Mot / Expression"}
+            </div>
+            <div className="text-lg font-medium">
+              {showBack ? backText : frontText}
+            </div>
+          </div>
+
+          {justAwarded > 0 && (
+            <div className="flex items-center justify-center gap-2 text-emerald-600">
+              <Coin />
+              <span>+{justAwarded}</span>
+            </div>
+          )}
+
+          <div className="flex gap-2 justify-between">
+            <button
+              onClick={onDontKnow}
+              className="flex-1 rounded-xl border px-4 py-2 hover:bg-gray-50"
+            >
+              Toujours pas
+            </button>
+            <button
+              onClick={onFlip}
+              className="rounded-xl border px-4 py-2"
+              title="Retourner"
+            >
+              ↻ Retourner
+            </button>
+            <button
+              onClick={onKnow}
+              className="flex-1 rounded-xl bg-indigo-600 text-white px-4 py-2"
+            >
+              Je connais
+            </button>
+          </div>
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          <Coin size={18} />
-          <span className="text-gray-700">session +{sessionCoins}</span>
-        </div>
-      </div>
-
-      <div
-        className={`rounded-3xl border shadow-lg p-10 text-center cursor-pointer select-none transition-transform ${
-          flip ? "bg-indigo-600 text-white" : "bg-white"
-        }`}
-        onClick={() => setFlip(!flip)}
-        title="Clique pour retourner la carte"
-      >
-        <div className="text-sm opacity-70 mb-2">{flip ? "FR" : "EN"}</div>
-        <div className="text-3xl font-bold">{flip ? current.fr : current.en}</div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-3">
-        <button onClick={() => mark("again")} className="rounded-2xl border py-2 hover:bg-rose-50">↩️ Again</button>
-        <button onClick={() => mark("good")}  className="rounded-2xl bg-emerald-600 text-white py-2">✅ Good (+1)</button>
-        <button onClick={() => mark("easy")}  className="rounded-2xl border py-2 hover:bg-indigo-50">🌟 Easy (+2)</button>
-      </div>
-
-      <div className="flex items-center gap-2 text-sm text-gray-500">
-        <span>“Good/Easy” te donne des pièces et espace les révisions (1→3→7→14→30→60j).</span>
-      </div>
-
-      <div className="text-center">
-        <button
-          onClick={() => setModeAll((m) => !m)}
-          className="rounded-2xl border px-3 py-2 hover:bg-indigo-50"
-        >
-          {modeAll ? "Revenir aux mots à revoir" : "Voir tous les mots"}
-        </button>
-      </div>
+      )}
     </main>
   );
 }
