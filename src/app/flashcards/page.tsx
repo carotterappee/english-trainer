@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { getDueWords, reviewWord } from "@/lib/wordStore";
 import { addCoins } from "@/lib/coins";
+import { loadProfile, catsKey } from "@/lib/profile";
 import Coin from "@/components/Coin";
 
 /** Objet carte souple (quelques clés possibles selon la source) */
@@ -52,13 +53,17 @@ function srsReview(item: CardObj, outcome: Outcome) {
 }
 
 export default function Flashcards() {
-  // queue: on accepte la forme renvoyée par le store (cast via unknown)
+  // Queue: on accepte la forme renvoyée par le store (cast via unknown)
   const [queue, setQueue] = useState<CardObj[]>(
     () => getDueWords() as unknown as CardObj[]
   );
   const [i, setI] = useState(0);
   const [showBack, setShowBack] = useState(false);
   const [justAwarded, setJustAwarded] = useState(0);
+
+  // Clé pour historiser les pièces (catégories sélectionnées)
+  const profile = loadProfile();
+  const coinBucket = profile ? catsKey(profile) : "everyday";
 
   const done = i >= queue.length;
   const current: CardObj | undefined = done ? undefined : queue[i];
@@ -74,8 +79,8 @@ export default function Flashcards() {
 
   const onKnow = () => {
     if (!current) return;
-    srsReview(current, "good"); // tu peux mettre "easy" si tu veux espacer plus
-    addCoins(3);
+    srsReview(current, "good"); // mets "easy" si tu veux espacer plus fort
+    addCoins(3, coinBucket);    // ← 2e argument requis par ton API
     setJustAwarded(3);
     next();
   };
