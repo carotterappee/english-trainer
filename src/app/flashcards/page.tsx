@@ -1,54 +1,50 @@
 "use client";
 
 import { useState } from "react";
-import { loadProfile } from "@/lib/profile";
 import { getDueWords, reviewWord } from "@/lib/wordStore";
 import { addCoins } from "@/lib/coins";
 import Coin from "@/components/Coin";
 
-type Card = {
-  id: string;
-  // divers champs possibles selon la source
-  front?: string;
-  back?: string;
-  word?: string;
-  head?: string;
-  en?: string;
-  fr?: string;
-  ru?: string;
-  translation?: string;
-  def?: string;
-};
+/** Objet carte tolérant (compat quelles que soient les clés présentes) */
+type CardObj = Record<string, unknown> & { id?: string };
+
+function pickText(o: CardObj | undefined, keys: string[]): string {
+  if (!o) return "";
+  for (const k of keys) {
+    const v = o[k as keyof CardObj];
+    if (typeof v === "string" && v.trim()) return v;
+  }
+  return "";
+}
+
+/** Appelle reviewWord quel que soit le format attendu (id ou objet) */
+function safeReview(item: CardObj, pass: boolean) {
+  try {
+    if ("id" in item && typeof item.id === "string") {
+      (reviewWord as (id: string, ok: boolean) => void)(item.id, pass);
+    } else {
+      (reviewWord as (payload: unknown, ok: boolean) => void)(item, pass);
+    }
+  } catch {
+    // ignore (tolérant à la signature réelle)
+  }
+}
 
 export default function Flashcards() {
-  // on charge le profil mais on ne quitte pas le rendu si null
-  const profile = loadProfile();
-
-  // file d’attente des mots à réviser (typés)
-  const [queue, setQueue] = useState<Card[]>(() => getDueWords() as Card[]);
+  // queue typée de façon souple : on accepte la forme renvoyée par le store
+  const [queue, setQueue] = useState<CardObj[]>(
+    () => getDueWords() as unknown as CardObj[]
+  );
   const [i, setI] = useState(0);
   const [showBack, setShowBack] = useState(false);
   const [justAwarded, setJustAwarded] = useState(0);
 
   const done = i >= queue.length;
-  const current: Card | undefined = done ? undefined : queue[i];
+  const current: CardObj | undefined = done ? undefined : queue[i];
 
-  // Récupération tolérante des champs texte
-  const frontText =
-    current?.front ??
-    current?.word ??
-    current?.head ??
-    current?.en ??
-    current?.fr ??
-    "";
-
-  const backText =
-    current?.back ??
-    current?.translation ??
-    current?.ru ??
-    current?.fr ??
-    current?.def ??
-    "";
+  // Affichages (on choisit la première clé non vide)
+  const frontText = pickText(current, ["front", "word", "head", "en", "fr"]);
+  const backText = pickText(current, ["back", "translation", "ru", "fr", "def"]);
 
   const next = () => {
     setShowBack(false);
@@ -58,11 +54,7 @@ export default function Flashcards() {
 
   const onKnow = () => {
     if (!current) return;
-    try {
-      reviewWord(current.id, true);
-    } catch {
-      // tolérant si la signature diffère, on ignore l'erreur
-    }
+    safeReview(current, true);
     addCoins(3);
     setJustAwarded(3);
     next();
@@ -70,18 +62,14 @@ export default function Flashcards() {
 
   const onDontKnow = () => {
     if (!current) return;
-    try {
-      reviewWord(current.id, false);
-    } catch {
-      // tolérant
-    }
+    safeReview(current, false);
     next();
   };
 
   const onFlip = () => setShowBack((v) => !v);
 
   const onReload = () => {
-    const fresh = getDueWords() as Card[];
+    const fresh = getDueWords() as unknown as CardObj[];
     setQueue(fresh);
     setI(0);
     setShowBack(false);
