@@ -5,33 +5,54 @@ import { getDueWords, reviewWord } from "@/lib/wordStore";
 import { addCoins } from "@/lib/coins";
 import Coin from "@/components/Coin";
 
-/** Objet carte tolérant (compat quelles que soient les clés présentes) */
-type CardObj = Record<string, unknown> & { id?: string };
+/** Objet carte souple (quelques clés possibles selon la source) */
+type CardObj = Record<string, unknown> & {
+  id?: string;
+  en?: string;
+  fr?: string;
+  ru?: string;
+  front?: string;
+  back?: string;
+  word?: string;
+  head?: string;
+  translation?: string;
+  def?: string;
+};
 
-function pickText(o: CardObj | undefined, keys: string[]): string {
+type Outcome = "again" | "good" | "easy";
+
+function pickText(o: CardObj | undefined, keys: (keyof CardObj)[]): string {
   if (!o) return "";
   for (const k of keys) {
-    const v = o[k as keyof CardObj];
+    const v = o[k];
     if (typeof v === "string" && v.trim()) return v;
   }
   return "";
 }
 
-/** Appelle reviewWord quel que soit le format attendu (id ou objet) */
-function safeReview(item: CardObj, pass: boolean) {
+/** Clé pour le SRS : on privilégie .en, sinon fallback raisonnable */
+function keyFor(o: CardObj): string | null {
+  if (typeof o.en === "string" && o.en.trim()) return o.en;
+  if (typeof o.word === "string" && o.word.trim()) return o.word;
+  if (typeof o.head === "string" && o.head.trim()) return o.head;
+  if (typeof o.id === "string" && o.id.trim()) return o.id;
+  if (typeof o.front === "string" && o.front.trim()) return o.front;
+  return null;
+}
+
+/** Appelle reviewWord avec un outcome explicite */
+function srsReview(item: CardObj, outcome: Outcome) {
+  const key = keyFor(item);
+  if (!key) return; // rien à faire si pas de clé exploitable
   try {
-    if ("id" in item && typeof item.id === "string") {
-      (reviewWord as (id: string, ok: boolean) => void)(item.id, pass);
-    } else {
-      (reviewWord as (payload: unknown, ok: boolean) => void)(item, pass);
-    }
+    reviewWord(key, outcome);
   } catch {
-    // ignore (tolérant à la signature réelle)
+    // tolérant si l'implémentation change : on ignore
   }
 }
 
 export default function Flashcards() {
-  // queue typée de façon souple : on accepte la forme renvoyée par le store
+  // queue: on accepte la forme renvoyée par le store (cast via unknown)
   const [queue, setQueue] = useState<CardObj[]>(
     () => getDueWords() as unknown as CardObj[]
   );
@@ -42,7 +63,6 @@ export default function Flashcards() {
   const done = i >= queue.length;
   const current: CardObj | undefined = done ? undefined : queue[i];
 
-  // Affichages (on choisit la première clé non vide)
   const frontText = pickText(current, ["front", "word", "head", "en", "fr"]);
   const backText = pickText(current, ["back", "translation", "ru", "fr", "def"]);
 
@@ -54,7 +74,7 @@ export default function Flashcards() {
 
   const onKnow = () => {
     if (!current) return;
-    safeReview(current, true);
+    srsReview(current, "good"); // tu peux mettre "easy" si tu veux espacer plus
     addCoins(3);
     setJustAwarded(3);
     next();
@@ -62,7 +82,7 @@ export default function Flashcards() {
 
   const onDontKnow = () => {
     if (!current) return;
-    safeReview(current, false);
+    srsReview(current, "again");
     next();
   };
 
