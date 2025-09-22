@@ -1,3 +1,4 @@
+import { selectedCats, catsKey } from "@/lib/profile";
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { getDueWords, reviewWord, loadWords } from "@/lib/wordStore";
@@ -9,7 +10,7 @@ type Outcome = "again" | "good" | "easy";
 
 export default function Flashcards() {
   const profile = loadProfile();
-  const goalForCoins = profile?.goal ?? "everyday"; // pour l’historique du coffre
+  const goalForCoins = catsKey(profile); // ex: "everyday" ou "everyday+work"
 
   const [modeAll, setModeAll] = useState(false);
   const due = useMemo(() => getDueWords(), []);
